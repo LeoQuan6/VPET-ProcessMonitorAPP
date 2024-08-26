@@ -178,7 +178,7 @@ namespace ProcessMonitorAPP
             StackPanel panel = new StackPanel { Orientation = Orientation.Horizontal };
             TextBox nameTextBox = new TextBox { Text = name, Width = 100, Margin = new Thickness(0, 10, 0, 0) };
             TextBox pathTextBox = new TextBox { Text = text, Width = 300, Margin = new Thickness(10, 10, 0, 0) };
-            Button removeButton = new Button { Content = "移除", Margin = new Thickness(10, 10, 0, 0) };
+            Button removeButton = new Button { Content = "移除", Margin = new Thickness(10, 10, 0, 0)};
             removeButton.Click += (s, e) => RemovePath(panel);
 
             panel.Children.Add(nameTextBox);

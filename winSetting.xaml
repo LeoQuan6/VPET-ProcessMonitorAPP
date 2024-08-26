@@ -23,8 +23,8 @@
             <Grid HorizontalAlignment="Center" Margin="0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="100"/>
-                    <ColumnDefinition Width="350"/>
-                    <ColumnDefinition Width="50"/>
+                    <ColumnDefinition Width="300"/>
+                    <ColumnDefinition Width="100"/>
                 </Grid.ColumnDefinitions>
                 <TextBlock Text="自定义程序名称&#x0a;(可不填)" Grid.Column="0" Margin="0,0,0,0" TextAlignment="Center"
                            HorizontalAlignment="Center" VerticalAlignment="Top" TextWrapping="Wrap" 
