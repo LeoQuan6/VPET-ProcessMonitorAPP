@@ -15,6 +15,8 @@ using VPet_Simulator.Windows.Interface;
 using VPet_Simulator.Windows;
 using Shell32;  // 添加对Shell32的引用以解析快捷方式
 using System.Collections.Generic;
+using System.Windows.Media;
+using Panuon.WPF.UI;
 
 namespace ProcessMonitorAPP
 {
@@ -178,7 +180,19 @@ namespace ProcessMonitorAPP
             StackPanel panel = new StackPanel { Orientation = Orientation.Horizontal };
             TextBox nameTextBox = new TextBox { Text = name, Width = 100, Margin = new Thickness(0, 10, 0, 0) };
             TextBox pathTextBox = new TextBox { Text = text, Width = 300, Margin = new Thickness(10, 10, 0, 0) };
-            Button removeButton = new Button { Content = "移除", Margin = new Thickness(10, 10, 0, 0)};
+            Button removeButton = new Button
+            {
+                Content = "移除",
+                Margin = new Thickness(10, 10, 0, 0),
+                Background = AddPath_Button.Background,
+                // Background = (Brush)new BrushConverter().ConvertFrom("#FFADD7F9"),
+                BorderBrush = AddPath_Button.BorderBrush,
+                // BorderBrush = (Brush)new BrushConverter().ConvertFrom("#FF6BB1E9"),
+                BorderThickness = new Thickness(2)
+            };
+            // 设置按钮为圆角
+            pu: ButtonHelper.SetCornerRadius(removeButton, new CornerRadius(4));
+
             removeButton.Click += (s, e) => RemovePath(panel);
 
             panel.Children.Add(nameTextBox);

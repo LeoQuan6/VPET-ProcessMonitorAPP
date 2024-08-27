@@ -14,9 +14,9 @@
     <Grid Background="{DynamicResource PrimaryLighter}">
         <StackPanel x:Name="InputPanel" VerticalAlignment="Top" HorizontalAlignment="Center">
             <!-- 现有的按钮和其他控件，采用主题色和圆角按钮风格 -->
-            <Button pu:ButtonHelper.CornerRadius="4" Content="增添路径" Background="{DynamicResource SecondaryLight}"
+            <Button pu:ButtonHelper.CornerRadius="4" Content="增添路径" Background="{DynamicResource SecondaryLight}" x:Name="AddPath_Button"
             BorderBrush="{DynamicResource SecondaryDark}" BorderThickness="2" Click="AddPathTextBox_Click" Margin="10,10,10,0" Width="100"/>
-            <Button pu:ButtonHelper.CornerRadius="4" Content="保存路径" Background="{DynamicResource SecondaryLight}"
+            <Button pu:ButtonHelper.CornerRadius="4" Content="保存路径" Background="{DynamicResource SecondaryLight}" x:Name="SavePath_Button"
             BorderBrush="{DynamicResource SecondaryDark}" BorderThickness="2" Click="SavePathsButton_Click" Margin="10,10,10,10" Width="100"/>
 
             <!-- 添加提示 -->
