@@ -12,27 +12,30 @@
     </Window.Resources>
 
     <Grid Background="{DynamicResource PrimaryLighter}">
-        <StackPanel x:Name="InputPanel" VerticalAlignment="Top" HorizontalAlignment="Center">
-            <!-- 现有的按钮和其他控件，采用主题色和圆角按钮风格 -->
-            <Button pu:ButtonHelper.CornerRadius="4" Content="增添路径" Background="{DynamicResource SecondaryLight}" x:Name="AddPath_Button"
-            BorderBrush="{DynamicResource SecondaryDark}" BorderThickness="2" Click="AddPathTextBox_Click" Margin="10,10,10,0" Width="100"/>
-            <Button pu:ButtonHelper.CornerRadius="4" Content="保存路径" Background="{DynamicResource SecondaryLight}" x:Name="SavePath_Button"
-            BorderBrush="{DynamicResource SecondaryDark}" BorderThickness="2" Click="SavePathsButton_Click" Margin="10,10,10,10" Width="100"/>
+        <!-- ScrollViewer added around StackPanel for scrolling capability -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel x:Name="InputPanel" VerticalAlignment="Top" HorizontalAlignment="Center">
+                <!-- Existing buttons and other controls, styled with theme colors and rounded corners -->
+                <Button pu:ButtonHelper.CornerRadius="4" Content="增添路径" Background="{DynamicResource SecondaryLight}" x:Name="AddPath_Button"
+                BorderBrush="{DynamicResource SecondaryDark}" BorderThickness="2" Click="AddPathTextBox_Click" Margin="10,10,10,0" Width="100"/>
+                <Button pu:ButtonHelper.CornerRadius="4" Content="保存路径" Background="{DynamicResource SecondaryLight}" x:Name="SavePath_Button"
+                BorderBrush="{DynamicResource SecondaryDark}" BorderThickness="2" Click="SavePathsButton_Click" Margin="10,10,10,10" Width="100"/>
 
-            <!-- 添加提示 -->
-            <Grid HorizontalAlignment="Center" Margin="0">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="100"/>
-                    <ColumnDefinition Width="300"/>
-                    <ColumnDefinition Width="100"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="自定义程序名称&#x0a;(可不填)" Grid.Column="0" Margin="0,0,0,0" TextAlignment="Center"
-                           HorizontalAlignment="Center" VerticalAlignment="Top" TextWrapping="Wrap" 
-                           Background="{DynamicResource SecondaryLight}" Padding="5" FontSize="12"/>
+                <!-- Adding prompts -->
+                <Grid HorizontalAlignment="Center" Margin="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="100"/>
+                        <ColumnDefinition Width="300"/>
+                        <ColumnDefinition Width="100"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="自定义程序名称&#x0a;(可不填)" Grid.Column="0" Margin="0,0,0,0" TextAlignment="Center"
+                               HorizontalAlignment="Center" VerticalAlignment="Top" TextWrapping="Wrap" 
+                               Background="{DynamicResource SecondaryLight}" Padding="5" FontSize="12"/>
 
-                <TextBlock Text="{ll:Str 路径}" Grid.Column="1" TextAlignment="Center" 
-                           HorizontalAlignment="Center" VerticalAlignment="Center" Background="{DynamicResource SecondaryLight}" Padding="5"/>
-            </Grid>
-        </StackPanel>
+                    <TextBlock Text="{ll:Str 路径}" Grid.Column="1" TextAlignment="Center" 
+                               HorizontalAlignment="Center" VerticalAlignment="Center" Background="{DynamicResource SecondaryLight}" Padding="5"/>
+                </Grid>
+            </StackPanel>
+        </ScrollViewer>
     </Grid>
 </Window>

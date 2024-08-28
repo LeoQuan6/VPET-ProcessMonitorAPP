@@ -66,10 +66,10 @@ namespace ProcessMonitorAPP
                 {
                     path = ResolveShortcut(file);
                 }
-                else if (Path.GetExtension(file).ToLower() == ".url")
+                /*else if (Path.GetExtension(file).ToLower() == ".url")
                 {
                     path = ResolveURLFile(file);
-                }
+                }*/
 
                 if (!string.IsNullOrEmpty(path))
                 {
@@ -94,7 +94,7 @@ namespace ProcessMonitorAPP
             }
             return null;
         }
-
+        /*
         private string ResolveURLFile(string urlFilePath)
         {
             if (File.Exists(urlFilePath) && Path.GetExtension(urlFilePath).ToLower() == ".url")
@@ -110,7 +110,7 @@ namespace ProcessMonitorAPP
             }
             return null;
         }
-
+        */
         private List<(TextBox nameTextBox, TextBox pathTextBox)> _textBoxes = new List<(TextBox, TextBox)>();
         private void LoadPaths()
         {

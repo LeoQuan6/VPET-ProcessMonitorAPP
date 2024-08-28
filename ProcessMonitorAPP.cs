@@ -56,9 +56,17 @@ namespace ProcessMonitorAPP
             }
 
             _isMonitoring = true;
-            ReloadAndMonitorProcesses();
 
-            // MessageBox.Show("Monitoring started.");
+            // 仅当文件存在时才加载和监控过程
+            var pathSave = LoaddllPath("ProcessMonitorAPP");
+            string filePath = Path.Combine(pathSave, "process_paths.txt");
+            if (!File.Exists(filePath))
+            {
+                // MessageBox.Show("配置文件不存在，监控不会启动。");
+                return;
+            }
+
+            ReloadAndMonitorProcesses();
         }
 
         /// <summary>
@@ -79,6 +87,14 @@ namespace ProcessMonitorAPP
         {
             if (winSetting == null)
             {
+                var pathSave = LoaddllPath("ProcessMonitorAPP");
+                string filePath = Path.Combine(pathSave, "process_paths.txt");
+
+                // 确保文件存在，如果不存在则创建一个空文件
+                if (!File.Exists(filePath))
+                {
+                    File.Create(filePath).Dispose(); // 创建并立即释放文件以避免锁定
+                }
                 winSetting = new winSetting(this);
                 winSetting.Closed += (sender, e) => winSetting = null; // 确保在窗口关闭时将实例设置为 null
                 winSetting.Show();
@@ -102,18 +118,19 @@ namespace ProcessMonitorAPP
             _cancellationTokenSource = new CancellationTokenSource();
 
             _processPaths.Clear();
+            List<string> missingFiles = new List<string>();
 
             try
             {
                 var PathSave = LoaddllPath("ProcessMonitorAPP");
                 string filePath = Path.Combine(PathSave, "process_paths.txt");
-
+                /*
                 if (!File.Exists(filePath))
                 {
                     // 文件不存在，创建一个空的
                     File.Create(filePath).Dispose();
                 }
-
+                */
                 var lines = File.ReadAllLines(filePath);
 
                 foreach (var line in lines)
@@ -124,24 +141,29 @@ namespace ProcessMonitorAPP
                         _processPaths.Add((parts[0], parts[1]));
                     }
                 }
+                foreach (var (programName, processPath) in _processPaths)
+                {
+                    if (File.Exists(processPath))
+                    {
+                        StartMonitoring(processPath);
+                    }
+                    else
+                    {
+                        missingFiles.Add(processPath);
+                    }
+                }
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"读取文件错误: {ex.Message}");
                 return;
             }
-
-            foreach (var (programName, processPath) in _processPaths)
+            if (missingFiles.Count > 0)
             {
-                if (File.Exists(processPath))
-                {
-                    StartMonitoring(processPath);
-                }
-                else
-                {
-                    MessageBox.Show($"以下文件不存在: {processPath}");
-                }
+                string missingMessage = "以下程序不存在:\n" + string.Join("\n", missingFiles);
+                MessageBox.Show(missingMessage);
             }
+
         }
 
 
