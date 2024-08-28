@@ -51,7 +51,7 @@ namespace ProcessMonitorAPP
             Set = new Setting(MW.Set["取消置顶"]);
             if (!Set.Enable)
             {
-                MessageBox.Show("Process monitoring is disabled.");
+                MessageBox.Show("监控并未正常启动");
                 return;
             }
 
@@ -127,7 +127,7 @@ namespace ProcessMonitorAPP
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error reading paths file: {ex.Message}");
+                MessageBox.Show($"读取文件错误: {ex.Message}");
                 return;
             }
 
@@ -139,7 +139,7 @@ namespace ProcessMonitorAPP
                 }
                 else
                 {
-                    MessageBox.Show($"File does not exist: {processPath}");
+                    MessageBox.Show($"以下文件不存在: {processPath}");
                 }
             }
         }

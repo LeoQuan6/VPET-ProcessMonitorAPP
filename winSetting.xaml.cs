@@ -168,7 +168,7 @@ namespace ProcessMonitorAPP
             string filePath = Path.Combine(PathSave, "process_paths.txt");
             File.WriteAllLines(filePath, lines);
 
-            MessageBox.Show("Paths saved successfully.", "Information", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show("路径保存成功", "Information", MessageBoxButton.OK, MessageBoxImage.Information);
 
             // 重新加载并启动监控程序
             vts.ReloadAndMonitorProcesses();
