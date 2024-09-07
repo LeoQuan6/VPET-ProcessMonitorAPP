@@ -15,6 +15,8 @@ using LinePutScript.Converter;
 using VPet_Simulator.Windows;
 using System.ComponentModel;
 using System.Windows.Documents;
+using System.Collections.Concurrent;
+using System.Windows.Shapes;
 
 namespace ProcessMonitorAPP
 {
@@ -30,7 +32,9 @@ namespace ProcessMonitorAPP
         private List<Task> _monitorTasks = new List<Task>();
         private CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
         private bool _isMonitoring;
-
+        private ConcurrentDictionary<string, bool> _runningProcesses = new ConcurrentDictionary<string, bool>(); // 记录所有被监控的进程的启动状态
+        public string modPath;  // 用来存储mod路径的公共变量
+        public string txtfilePath;  // 用来存储process_paths.txt的路径的公共变量
 
         /// <summary>
         /// 当桌宠开启，加载mod的时候会调用这个函数
@@ -56,17 +60,15 @@ namespace ProcessMonitorAPP
             }
 
             _isMonitoring = true;
-
-            // 仅当文件存在时才加载和监控过程
-            var pathSave = LoaddllPath("ProcessMonitorAPP");
-            string filePath = Path.Combine(pathSave, "process_paths.txt");
-            if (!File.Exists(filePath))
+            modPath = LoaddllPath("ProcessMonitorAPP"); // 初始化mod路径
+            txtfilePath = System.IO.Path.Combine(modPath, "process_paths.txt"); // 使用modPath变量
+            if (!File.Exists(txtfilePath))
             {
                 // MessageBox.Show("配置文件不存在，监控不会启动。");
                 return;
             }
 
-            ReloadAndMonitorProcesses();
+            LoadAndMonitorProcesses();
         }
 
         /// <summary>
@@ -87,13 +89,10 @@ namespace ProcessMonitorAPP
         {
             if (winSetting == null)
             {
-                var pathSave = LoaddllPath("ProcessMonitorAPP");
-                string filePath = Path.Combine(pathSave, "process_paths.txt");
-
                 // 确保文件存在，如果不存在则创建一个空文件
-                if (!File.Exists(filePath))
+                if (!File.Exists(txtfilePath))
                 {
-                    File.Create(filePath).Dispose(); // 创建并立即释放文件以避免锁定
+                    File.Create(txtfilePath).Dispose(); // 创建并立即释放文件以避免锁定
                 }
                 winSetting = new winSetting(this);
                 winSetting.Closed += (sender, e) => winSetting = null; // 确保在窗口关闭时将实例设置为 null
@@ -109,76 +108,146 @@ namespace ProcessMonitorAPP
             }
         }
 
-        public void ReloadAndMonitorProcesses()
+        /// <summary>
+        /// 启动桌宠时 加载保存的文件中的路径并进行监控
+        /// </summary>
+        public void LoadAndMonitorProcesses()
         {
-            if (_processPaths == null) _processPaths = new List<(string, string)>();
-            _cancellationTokenSource.Cancel();
-            _monitorTasks.ForEach(task => task.Wait());
-            _monitorTasks.Clear();
-            _cancellationTokenSource = new CancellationTokenSource();
+            _cancellationTokenSource.Cancel(); // 取消所有监控任务线程
+            _runningProcesses.Clear(); // 清除字典中的所有条目
+            _cancellationTokenSource = new CancellationTokenSource(); // 重新初始化监控任务线程
+            List<string> missingFiles = new List<string>(); // 如果读取文件中有失效的路径, 记录在此处
 
-            _processPaths.Clear();
-            List<string> missingFiles = new List<string>();
+            var lines = File.ReadAllLines(txtfilePath);
 
-            try
+            foreach (var line in lines)
             {
-                var PathSave = LoaddllPath("ProcessMonitorAPP");
-                string filePath = Path.Combine(PathSave, "process_paths.txt");
-                /*
-                if (!File.Exists(filePath))
+                var parts = line.Split(new[] { '|' }, 2);
+                if (parts.Length == 2)
                 {
-                    // 文件不存在，创建一个空的
-                    File.Create(filePath).Dispose();
-                }
-                */
-                var lines = File.ReadAllLines(filePath);
-
-                foreach (var line in lines)
-                {
-                    var parts = line.Split(new[] { '|' }, 2);
-                    if (parts.Length == 2)
-                    {
-                        _processPaths.Add((parts[0], parts[1]));
-                    }
-                }
-                foreach (var (programName, processPath) in _processPaths)
-                {
-                    if (File.Exists(processPath))
-                    {
-                        StartMonitoring(processPath);
-                    }
-                    else
-                    {
-                        missingFiles.Add(processPath);
-                    }
+                    _runningProcesses[parts[1]] = false; // 添加到字典并初始化为false 
                 }
             }
-            catch (Exception ex)
+            foreach (var processPath in _runningProcesses.Keys.ToList())
             {
-                MessageBox.Show($"读取文件错误: {ex.Message}");
-                return;
+                if (File.Exists(processPath))
+                {
+                    StartMonitoring(processPath, false);
+                }
+                else
+                {
+                    missingFiles.Add(processPath);
+                }
+            }
+
+            if (missingFiles.Count > 0)
+            {
+                string missingMessage = "以下程序不存在:\n" + string.Join("\n", missingFiles);
+                MessageBox.Show(missingMessage);
+            }
+        }
+
+        /// <summary>
+        /// 重新加载监控程序
+        /// </summary>
+        public void ReloadAndMonitorProcesses()
+        {
+            _cancellationTokenSource.Cancel();
+            // 等待并清理现有监控任务
+            foreach (var task in _monitorTasks)
+            {
+                try
+                {
+                    task.Wait();
+                }
+                catch (AggregateException)
+                {
+                    // 忽略任务取消引发的异常
+                }
+            }
+
+            _monitorTasks.Clear();
+
+            List<string> missingFiles = new List<string>(); // 如果读取文件中有失效的路径, 记录在此处
+
+
+            var lines = File.ReadAllLines(txtfilePath);
+            List<string> newPaths = new List<string>();
+            foreach (var line in lines)
+            {
+                var parts = line.Split(new[] { '|' }, 2);
+                if (parts.Length == 2)
+                {
+                    newPaths.Add(parts[1]);
+                }
+            }
+
+            // 对比现有的键，并统计运行中的进程
+            List<string> runningProcesses = new List<string>();
+            foreach (var key in _runningProcesses.Keys)
+            {
+                if (_runningProcesses[key] && newPaths.Contains(key))
+                {
+                    runningProcesses.Add(key);
+                }
+            }
+            if (runningProcesses.Count == 0)
+            {
+                ToggleTopMost(true);
+            }
+            else
+            {
+                ToggleTopMost(false);
+            }
+            // 重置字典
+            _runningProcesses.Clear();
+            // 添加所有读取到的路径到字典，初始化值为false
+            foreach (var path in newPaths)
+            {
+                _runningProcesses[path] = false;
+            }
+            // 如果存在正在运行的进程，更新其状态为true
+            foreach (var runningPath in runningProcesses)
+            {
+                if (_runningProcesses.ContainsKey(runningPath))
+                {
+                    _runningProcesses[runningPath] = true;
+                }
+            }
+            _cancellationTokenSource = new CancellationTokenSource(); // 重新初始化取消标记源
+
+            // 重新启动监控
+            foreach (var processpath in _runningProcesses.Keys.ToList())
+            {
+                if (File.Exists(processpath))
+                {
+                    bool initialState = runningProcesses.Contains(processpath); // 判断是否是之前正在运行的进程
+                    StartMonitoring(processpath, initialState);
+                }
+                else
+                {
+                    missingFiles.Add(processpath);
+                }
             }
             if (missingFiles.Count > 0)
             {
                 string missingMessage = "以下程序不存在:\n" + string.Join("\n", missingFiles);
                 MessageBox.Show(missingMessage);
             }
-
         }
 
 
-        private void StartMonitoring(string processPath)
+        private void StartMonitoring(string processPath, bool initialState)
         {
             var token = _cancellationTokenSource.Token;
-            var monitorTask = Task.Run(() => MonitorProcess(processPath, token), token);
+            var monitorTask = Task.Run(() => MonitorProcess(processPath, token, initialState), token);
             _monitorTasks.Add(monitorTask);
         }
 
 
-        private void MonitorProcess(string processPath, CancellationToken token)
+        private void MonitorProcess(string processPath, CancellationToken token, bool wasRunning)
         {
-            string processName = Path.GetFileNameWithoutExtension(processPath);
-            bool wasRunning = false;
+            string processName = System.IO.Path.GetFileNameWithoutExtension(processPath);
 
             while (!token.IsCancellationRequested)
             {
@@ -188,13 +257,13 @@ namespace ProcessMonitorAPP
 
                     if (isRunning && !wasRunning)
                     {
-                        OnProcessStarted(processName);
+                        OnProcessStarted(processPath);
                     }
                     else if (!isRunning && wasRunning)
                     {
-                        OnProcessStopped(processName);
+                        OnProcessStopped(processPath);
                     }
-                    
+
                     wasRunning = isRunning;
                 }
                 catch (System.ComponentModel.Win32Exception winEx)
@@ -315,62 +384,64 @@ namespace ProcessMonitorAPP
          * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
          * ------------------------------------------------------------------------------------------------------------------------
          */
-        private int runningProcesses = 0;
-        protected virtual async void OnProcessStarted(string processName)
+        // private int runningProcesses = 0;
+        protected virtual async void OnProcessStarted(string processPath)
         {
             var mw = MW as MainWindow;
             if (mw != null)
             {
                 Application.Current.Dispatcher.Invoke(() => {
-                    Interlocked.Increment(ref runningProcesses);  // 原子操作增加计数器
-                    ToggleTopMost(false);
-                    //mw.Topmost = false; // 程序启动时取消置顶
+                    _runningProcesses[processPath] = true;  // 更新字典值
+                    if (_runningProcesses.Count(p => p.Value) > 0) // 检查是否有任何运行中的进程
+                    {
+                        ToggleTopMost(false);
+                    }
                 });
 
                 await Task.Delay(500);  // 异步等待500毫秒
                 Application.Current.Dispatcher.Invoke(() => {
-                    ToggleTopMost(false);
-                    //mw.Topmost = false; // 再次确认取消置顶
+                    if (_runningProcesses.Count(p => p.Value) > 0) // 检查是否有任何运行中的进程
+                    {
+                        ToggleTopMost(false); // 再次确认取消置顶
+                    }
                 });
 
                 await Task.Delay(500);  // 异步等待500毫秒
                 Application.Current.Dispatcher.Invoke(() => {
-                    ToggleTopMost(false);
-                    //mw.Topmost = false; // 再次确认取消置顶
+                    if (_runningProcesses.Count(p => p.Value) > 0) // 检查是否有任何运行中的进程
+                    {
+                        ToggleTopMost(false); // 再次确认取消置顶
+                    }
                 });
             }
         }
 
-        protected virtual async void OnProcessStopped(string processName)
+        protected virtual async void OnProcessStopped(string processPath)
         {
             var mw = MW as MainWindow;
             if (mw != null)
             {
                 Application.Current.Dispatcher.Invoke(() => {
-                    if (Interlocked.Decrement(ref runningProcesses) == 0)
+                    _runningProcesses[processPath] = false;  // 更新字典值
+                    if (_runningProcesses.Count(p => p.Value) == 0)
                     {
-                        ToggleTopMost(true);
-                        //mw.Topmost = true; // 尝试恢复置顶
+                        ToggleTopMost(true); // 尝试恢复置顶
                     }
                 });
 
-                if (runningProcesses == 0)
+                await Task.Delay(500);  // 异步等待500毫秒
+                if (_runningProcesses.Count(p => p.Value) == 0)
                 {
-                    await Task.Delay(500);  // 异步等待500毫秒
-
                     Application.Current.Dispatcher.Invoke(() => {
-                        ToggleTopMost(true);
-                        //mw.Topmost = true; // 再次确认置顶
+                        ToggleTopMost(true); // 再次确认置顶
                     });
                 }
 
-                if (runningProcesses == 0)
+                await Task.Delay(500);  // 异步等待500毫秒
+                if (_runningProcesses.Count(p => p.Value) == 0)
                 {
-                    await Task.Delay(500);  // 异步等待500毫秒
-
                     Application.Current.Dispatcher.Invoke(() => {
-                        ToggleTopMost(true);
-                        //mw.Topmost = true; // 再次确认置顶
+                        ToggleTopMost(true); // 再次确认置顶
                     });
                 }
             }
@@ -384,13 +455,12 @@ namespace ProcessMonitorAPP
         private void LogErrorToFile(string errorMessage)
         {
             // 使用与 process_paths.txt 相同的路径
-            string logDirectory = LoaddllPath("ProcessMonitorAPP"); // 获取保存路径
-            string logFilePath = Path.Combine(logDirectory, "ErrorLogs.txt"); // 创建日志文件的完整路径
+            string logFilePath = System.IO.Path.Combine(modPath, "ErrorLogs.txt"); // 创建日志文件的完整路径
 
             // 检查目录是否存在，如果不存在，则创建
-            if (!Directory.Exists(logDirectory))
+            if (!Directory.Exists(modPath))
             {
-                Directory.CreateDirectory(logDirectory);
+                Directory.CreateDirectory(modPath);
             }
 
             // 将错误信息追加到日志文件

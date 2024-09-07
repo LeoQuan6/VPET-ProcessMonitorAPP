@@ -16,7 +16,6 @@ using VPet_Simulator.Windows;
 using Shell32;  // 添加对Shell32的引用以解析快捷方式
 using System.Collections.Generic;
 using System.Windows.Media;
-using Panuon.WPF.UI;
 
 namespace ProcessMonitorAPP
 {
@@ -26,16 +25,19 @@ namespace ProcessMonitorAPP
     public partial class winSetting : Window
     {
         ProcessMonitor vts;
-
+        private string modPath;  // 添加字段来存储mod路径
+        private string txtfilePath;  // 用来存储process_paths.txt的路径的公共变量
         public winSetting(ProcessMonitor vts)
         {
             InitializeComponent();
             //Resources = Application.Current.Resources;
             this.vts = vts;
+            modPath = vts.modPath;  // 从ProcessMonitor实例获取modPath
+            txtfilePath = vts.txtfilePath;  // 从ProcessMonitor实例获取txtfilePath
             LoadPaths(); // 加载保存的路径
             SetupDragDrop();  // 设置拖放支持
         }
-
+        
         private void Window_Closed(object sender, EventArgs e)
         {
             vts.winSetting = null;
@@ -114,20 +116,15 @@ namespace ProcessMonitorAPP
         private List<(TextBox nameTextBox, TextBox pathTextBox)> _textBoxes = new List<(TextBox, TextBox)>();
         private void LoadPaths()
         {
-            var path = vts.LoaddllPath("ProcessMonitorAPP");
-            if (!string.IsNullOrEmpty(path))
+            if (File.Exists(txtfilePath))
             {
-                string filePath = Path.Combine(path, "process_paths.txt");
-                if (File.Exists(filePath))
+                var lines = File.ReadAllLines(txtfilePath);
+                foreach (var line in lines)
                 {
-                    var lines = File.ReadAllLines(filePath);
-                    foreach (var line in lines)
+                    var parts = line.Split(new[] { '|' }, 2);
+                    if (parts.Length == 2)
                     {
-                        var parts = line.Split(new[] { '|' }, 2);
-                        if (parts.Length == 2)
-                        {
-                            AddPathTextBox(parts[0], parts[1], true);
-                        }
+                        AddPathTextBox(parts[0], parts[1], true);
                     }
                 }
             }
@@ -147,9 +144,10 @@ namespace ProcessMonitorAPP
                 string processPath = pathTextBox.Text.Trim(); // 移除路径两端的空白
                 processPath = processPath.Trim('"');// 移除路径两端的引号
 
-                // 如果路径不为空且名称为空，则自动生成名称
+                // 路径不为空才进行保存等操作
                 if (!string.IsNullOrWhiteSpace(processPath))
                 {
+                    // 如果路径不为空且名称为空，则自动生成名称
                     if (string.IsNullOrWhiteSpace(name))
                     {
                         name = Path.GetFileNameWithoutExtension(processPath);
@@ -163,10 +161,7 @@ namespace ProcessMonitorAPP
                     }
                 }
             }
-
-            var PathSave = vts.LoaddllPath("ProcessMonitorAPP");
-            string filePath = Path.Combine(PathSave, "process_paths.txt");
-            File.WriteAllLines(filePath, lines);
+            File.WriteAllLines(txtfilePath, lines);
 
             MessageBox.Show("路径保存成功", "Information", MessageBoxButton.OK, MessageBoxImage.Information);
 
