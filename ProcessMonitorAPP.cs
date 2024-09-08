@@ -28,11 +28,26 @@ namespace ProcessMonitorAPP
         {
         }
         // 使用字段初始化
+        /// <summary>
+        /// 监控任务统计
+        /// </summary>
         private List<Task> _monitorTasks = new List<Task>();
+        /// <summary>
+        /// 取消标记源
+        /// </summary>
         private CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
-        private ConcurrentDictionary<string, bool> _runningProcesses = new ConcurrentDictionary<string, bool>(); // 记录所有被监控的进程的启动状态
-        public string modPath;  // 用来存储mod路径的公共变量
-        public string txtfilePath;  // 用来存储process_paths.txt的路径的公共变量
+        /// <summary>
+        /// 记录所有被监控的进程及运行状态
+        /// </summary>
+        private ConcurrentDictionary<string, bool> _runningProcesses = new ConcurrentDictionary<string, bool>();
+        /// <summary>
+        /// 存储mod路径
+        /// </summary>
+        public string modPath;
+        /// <summary>
+        /// 存储process_paths.txt的路径
+        /// </summary>
+        public string txtfilePath;
 
         /// <summary>
         /// 当桌宠开启，加载mod的时候会调用这个函数
@@ -208,7 +223,11 @@ namespace ProcessMonitorAPP
             }
         }
 
-
+        /// <summary>
+        /// 对该进程开始监控运行状态
+        /// </summary>
+        /// <param name="processPath">监控的进程的路径</param>
+        /// <param name="initialState">监控前 程序的运行状态</param>
         private void StartMonitoring(string processPath, bool initialState)
         {
             var token = _cancellationTokenSource.Token;
@@ -216,7 +235,13 @@ namespace ProcessMonitorAPP
             _monitorTasks.Add(monitorTask);
         }
 
-
+        /// <summary>
+        /// 监控指定路径的进程 并根据进程运行状态触发相应的事件
+        /// 此方法将持续检查进程状态 直到接收到取消请求
+        /// </summary>
+        /// <param name="processPath">要监控的进程的完整文件路径</param>
+        /// <param name="token">用于接收取消监控的信号的取消标记</param>
+        /// <param name="wasRunning">监控开始时进程的运行状态 true表示进程已在运行 false表示进程未在运行。</param>
         private void MonitorProcess(string processPath, CancellationToken token, bool wasRunning)
         {
             string processName = System.IO.Path.GetFileNameWithoutExtension(processPath);
@@ -244,7 +269,7 @@ namespace ProcessMonitorAPP
                     {
                         continue;  // 忽略此错误，继续监控
                     }
-                    else if (winEx.NativeErrorCode == 299) // "ERROR_PARTIAL_COPY"
+                    else if (winEx.NativeErrorCode == 299) // "部分复制错误"
                     {
                         continue; // 忽略部分复制错误，可能由进程状态变化引起
                     }
@@ -267,6 +292,14 @@ namespace ProcessMonitorAPP
             }
         }
 
+        /// <summary>
+        /// 检查指定名称和路径的进程是否正在运行
+        /// </summary>
+        /// <param name="processName">要检查的进程的名称</param>
+        /// <param name="processPath">要检查的进程的完整路径</param>
+        /// <returns>如果进程正在运行且路径匹配，则返回 true；否则返回 false</returns>
+        /// <exception cref="System.ComponentModel.Win32Exception">访问进程信息时遇到问题，可能是权限不足或其他Windows API错误。</exception>
+        /// <exception cref="Exception">处理进程信息时发生不可预见的异常。</exception>
         private bool IsProcessRunning(string processName, string processPath)
         {
             try
@@ -342,22 +375,22 @@ namespace ProcessMonitorAPP
             // 重置 CancellationTokenSource 以便后续使用
             _cancellationTokenSource = new CancellationTokenSource();
         }
-        /*
-        * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-        * ------------------------------------------------------------------------------------------------------------------------
-        */
-
+ 
+        /// <summary>
+        /// 设置桌宠窗口是否应置顶
+        /// </summary>
+        /// <param name="topMost">true则置顶 false则取消置顶。</param>
         public void ToggleTopMost(bool topMost)
         {
             var setting = MW.Set;
             MW.Set.SetTopMost(topMost);
         }
 
-
-        /*
-         * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-         * ------------------------------------------------------------------------------------------------------------------------
-         */
+        /// <summary>
+        /// 当指定的进程启动时调用 判断是否需要进行取消置顶操作
+        /// 并更新字典中对应进程的运行状态
+        /// </summary>
+        /// <param name="processPath">启动的进程的完整路径 用于更新字典中对应进程的运行状态</param>
         protected virtual async void OnProcessStarted(string processPath)
         {
             var mw = MW as MainWindow;
@@ -389,6 +422,11 @@ namespace ProcessMonitorAPP
             }
         }
 
+        /// <summary>
+        /// 当指定的进程关闭时调用 判断是否需要进行恢复置顶操作
+        /// 并更新字典中对应进程的运行状态
+        /// </summary>
+        /// <param name="processPath">关闭的进程的完整路径 用于更新字典中对应进程的运行状态</param>
         protected virtual async void OnProcessStopped(string processPath)
         {
             var mw = MW as MainWindow;
@@ -420,11 +458,10 @@ namespace ProcessMonitorAPP
             }
         }
 
-        /*
-         * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-         * ------------------------------------------------------------------------------------------------------------------------
-         */
-
+        /// <summary>
+        /// 错误日志记录
+        /// </summary>
+        /// <param name="errorMessage"></param>
         private void LogErrorToFile(string errorMessage)
         {
             // 使用与 process_paths.txt 相同的路径

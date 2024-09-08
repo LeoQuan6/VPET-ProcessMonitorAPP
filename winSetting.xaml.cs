@@ -25,8 +25,19 @@ namespace ProcessMonitorAPP
     public partial class winSetting : Window
     {
         ProcessMonitor vts;
-        private string modPath;  // 添加字段来存储mod路径
-        private string txtfilePath;  // 用来存储process_paths.txt的路径的公共变量
+        /// <summary>
+        /// 添加字段来来接收由ProcessMonitorAPP.cs传来的mod路径
+        /// </summary>
+        private string modPath;
+        /// <summary>
+        /// 添加字段来来接收由ProcessMonitorAPP.cs传来的process_paths.txt的路径
+        /// </summary>
+        private string txtfilePath;
+
+        /// <summary>
+        /// 加载设置窗口
+        /// </summary>
+        /// <param name="vts"></param>
         public winSetting(ProcessMonitor vts)
         {
             InitializeComponent();
@@ -42,7 +53,10 @@ namespace ProcessMonitorAPP
         {
             vts.winSetting = null;
         }
-
+        /// <summary>
+        /// 配置窗口以允许拖拽文件进入窗口
+        /// 此方法初始化窗口的拖拽相关事件处理 允许文件被拖放到窗口上
+        /// </summary>
         private void SetupDragDrop()
         {
             this.AllowDrop = true;
@@ -50,6 +64,11 @@ namespace ProcessMonitorAPP
             this.Drop += OnDrop;
         }
 
+        /// <summary>
+        /// 处理拖拽进入窗口的事件
+        /// 当文件被拖拽到窗口边界时调用此方法 设置拖拽效果
+        /// </summary>
+        /// <param name="e">包含事件数据的 DragEventArgs 包括被拖拽的数据和影响拖拽操作的效果</param>
         private void OnDragEnter(object sender, DragEventArgs e)
         {
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
@@ -58,6 +77,10 @@ namespace ProcessMonitorAPP
                 e.Effects = DragDropEffects.None;
         }
 
+        /// <summary>
+        /// 对放入的lnk格式的快捷方式的处理
+        /// </summary>
+        /// <param name="e">包含事件数据的DragEventArgs对象 此对象提供对拖放的文件信息的访问</param>
         private void OnDrop(object sender, DragEventArgs e)
         {
             string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
@@ -68,10 +91,6 @@ namespace ProcessMonitorAPP
                 {
                     path = ResolveShortcut(file);
                 }
-                /*else if (Path.GetExtension(file).ToLower() == ".url")
-                {
-                    path = ResolveURLFile(file);
-                }*/
 
                 if (!string.IsNullOrEmpty(path))
                 {
@@ -81,6 +100,12 @@ namespace ProcessMonitorAPP
             }
         }
 
+        /// <summary>
+        /// 解析Windows快捷方式文件(.lnk)并返回链接到的原始文件的路径
+        /// 如果提供的路径不是有效的快捷方式或无法解析快捷方式 则返回 null
+        /// </summary>
+        /// <param name="shortcutPath">快捷方式文件的完整路径</param>
+        /// <returns>快捷方式指向的文件的完整路径; 如果快捷方式无效或无法解析 则为 null</returns>
         private string ResolveShortcut(string shortcutPath)
         {
             if (Path.GetExtension(shortcutPath).ToLower() == ".lnk")
@@ -96,24 +121,16 @@ namespace ProcessMonitorAPP
             }
             return null;
         }
-        /*
-        private string ResolveURLFile(string urlFilePath)
-        {
-            if (File.Exists(urlFilePath) && Path.GetExtension(urlFilePath).ToLower() == ".url")
-            {
-                var lines = File.ReadAllLines(urlFilePath);
-                foreach (var line in lines)
-                {
-                    if (line.StartsWith("URL=", StringComparison.OrdinalIgnoreCase))
-                    {
-                        return line.Substring(4);
-                    }
-                }
-            }
-            return null;
-        }
-        */
+
+        /// <summary>
+        /// 存储一组文本框对 每对文本框用于输入和显示进程的名称和路径
+        /// 该列表被用于动态管理界面上的进程配置输入字段 允许用户添加、编辑和删除进程监控条目
+        /// </summary>
         private List<(TextBox nameTextBox, TextBox pathTextBox)> _textBoxes = new List<(TextBox, TextBox)>();
+
+        /// <summary>
+        /// 从配置文件读取路径信息 并初始化对应的文本框
+        /// </summary>
         private void LoadPaths()
         {
             if (File.Exists(txtfilePath))
@@ -130,11 +147,17 @@ namespace ProcessMonitorAPP
             }
         }
 
+        /// <summary>
+        /// 处理点击事件以添加一个新的路径文本框到界面上
+        /// </summary>
         private void AddPathTextBox_Click(object sender, RoutedEventArgs e)
         {
             AddPathTextBox();
         }
 
+        /// <summary>
+        /// 处理保存路径按钮的点击事件 该方法从界面中获取用户输入的进程名称和路径 验证并保存合法的进程路径到配置文件 然后重新加载和启动监控程序。
+        /// </summary>
         private void SavePathsButton_Click(object sender, RoutedEventArgs e)
         {
             List<string> lines = new List<string>();
@@ -170,7 +193,12 @@ namespace ProcessMonitorAPP
             vts.ReloadAndMonitorProcesses();
         }
 
-
+        /// <summary>
+        /// 动态添加一行路径输入区域到界面上 包括一个名称输入框、一个路径输入框和一个移除按钮
+        /// </summary>
+        /// <param name="name">路径条目的名称，默认为空字符串，显示在第一个文本框中。</param>
+        /// <param name="text">路径的具体文本，默认为空字符串，显示在第二个文本框中。</param>
+        /// <param name="isSavedPath">指示该路径是否是已保存路径，默认为 false，此参数目前未使用，可以用于将来的扩展。</param>
         private void AddPathTextBox(string name = "", string text = "", bool isSavedPath = false)
         {
             StackPanel panel = new StackPanel { Orientation = Orientation.Horizontal };
@@ -200,8 +228,10 @@ namespace ProcessMonitorAPP
             _textBoxes.Add((nameTextBox, pathTextBox));  // 将新文本框添加到跟踪列表中
         }
 
-
-
+        /// <summary>
+        /// 从界面中移除指定的StackPanel控件 并更新内部数据结构以反映这一变化
+        /// </summary>
+        /// <param name="panel"></param>
         private void RemovePath(StackPanel panel)
         {
             InputPanel.Children.Remove(panel);
