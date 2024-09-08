@@ -162,64 +162,38 @@ namespace ProcessMonitorAPP
                     // 忽略任务取消引发的异常
                 }
             }
-
             _monitorTasks.Clear();
-
-            List<string> missingFiles = new List<string>(); // 如果读取文件中有失效的路径, 记录在此处
-
-
+            // 读取所有新路径, 并将旧字典中旧路径的状态导入字典
             var lines = File.ReadAllLines(txtfilePath);
-            List<string> newPaths = new List<string>();
+            var newPaths = new Dictionary<string, bool>();  // 新路径字典, 用于存储路径和初始监控状态
             foreach (var line in lines)
             {
                 var parts = line.Split(new[] { '|' }, 2);
                 if (parts.Length == 2)
                 {
-                    newPaths.Add(parts[1]);
+                    var wasRunning = _runningProcesses.TryGetValue(parts[1], out var running) && running;  // 只有既是旧路径且原值为true的情况下才返回true
+                    newPaths[parts[1]] = wasRunning;  // 更新新字典, 并输入对应值
                 }
             }
-
-            // 对比现有的键，并统计运行中的进程
-            List<string> runningProcesses = new List<string>();
-            foreach (var key in _runningProcesses.Keys)
-            {
-                if (_runningProcesses[key] && newPaths.Contains(key))
-                {
-                    runningProcesses.Add(key);
-                }
-            }
-            if (runningProcesses.Count == 0)
+            // 如果被监控的程序没有在运行, 则恢复置顶, 有则再次取消置顶
+            if (newPaths.Count(p => p.Value) == 0)
             {
                 ToggleTopMost(true);
             }
-            else
+            else 
             {
                 ToggleTopMost(false);
             }
-            // 重置字典
-            _runningProcesses.Clear();
-            // 添加所有读取到的路径到字典，初始化值为false
-            foreach (var path in newPaths)
-            {
-                _runningProcesses[path] = false;
-            }
-            // 如果存在正在运行的进程，更新其状态为true
-            foreach (var runningPath in runningProcesses)
-            {
-                if (_runningProcesses.ContainsKey(runningPath))
-                {
-                    _runningProcesses[runningPath] = true;
-                }
-            }
-            _cancellationTokenSource = new CancellationTokenSource(); // 重新初始化取消标记源
-
-            // 重新启动监控
-            foreach (var processpath in _runningProcesses.Keys.ToList())
+            _runningProcesses = new ConcurrentDictionary<string, bool>(newPaths); // 更新_runningProcesses为最新的路径集合
+            _cancellationTokenSource = new CancellationTokenSource();  // 重新初始化取消标记源
+            
+            // 根据字典中的键值对, 重新启动监控, 并传入对应值
+            List<string> missingFiles = new List<string>(); // 如果读取文件中有失效的路径, 记录在此处
+            foreach (var (processpath, wasRunning) in _runningProcesses)
             {
                 if (File.Exists(processpath))
                 {
-                    bool initialState = runningProcesses.Contains(processpath); // 判断是否是之前正在运行的进程
-                    StartMonitoring(processpath, initialState);
+                    StartMonitoring(processpath, wasRunning);
                 }
                 else
                 {
@@ -340,7 +314,9 @@ namespace ProcessMonitorAPP
             return false; // 默认返回进程不在运行
         }
 
-        // 终止所有监控
+        /// <summary>
+        /// 终止所有监控
+        /// </summary>
         public void StopAllMonitoring()
         {
             // 发送取消信号给所有监控任务
@@ -381,7 +357,6 @@ namespace ProcessMonitorAPP
          * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
          * ------------------------------------------------------------------------------------------------------------------------
          */
-        // private int runningProcesses = 0;
         protected virtual async void OnProcessStarted(string processPath)
         {
             var mw = MW as MainWindow;
