@@ -28,10 +28,8 @@ namespace ProcessMonitorAPP
         {
         }
         // 使用字段初始化
-        private List<(string programName, string processPath)> _processPaths = new List<(string programName, string processPath)>();
         private List<Task> _monitorTasks = new List<Task>();
         private CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
-        private bool _isMonitoring;
         private ConcurrentDictionary<string, bool> _runningProcesses = new ConcurrentDictionary<string, bool>(); // 记录所有被监控的进程的启动状态
         public string modPath;  // 用来存储mod路径的公共变量
         public string txtfilePath;  // 用来存储process_paths.txt的路径的公共变量
@@ -59,7 +57,6 @@ namespace ProcessMonitorAPP
                 return;
             }
 
-            _isMonitoring = true;
             modPath = LoaddllPath("ProcessMonitorAPP"); // 初始化mod路径
             txtfilePath = System.IO.Path.Combine(modPath, "process_paths.txt"); // 使用modPath变量
             if (!File.Exists(txtfilePath))
@@ -118,28 +115,28 @@ namespace ProcessMonitorAPP
             _cancellationTokenSource = new CancellationTokenSource(); // 重新初始化监控任务线程
             List<string> missingFiles = new List<string>(); // 如果读取文件中有失效的路径, 记录在此处
 
+            // 读取路径并初始化监控
             var lines = File.ReadAllLines(txtfilePath);
-
             foreach (var line in lines)
             {
                 var parts = line.Split(new[] { '|' }, 2);
-                if (parts.Length == 2)
+                if (parts.Length == 2 && File.Exists(parts[1]))
                 {
                     _runningProcesses[parts[1]] = false; // 添加到字典并初始化为false 
+                    StartMonitoring(parts[1], false);
                 }
-            }
-            foreach (var processPath in _runningProcesses.Keys.ToList())
-            {
-                if (File.Exists(processPath))
+                else if (!File.Exists(parts[1]))
                 {
-                    StartMonitoring(processPath, false);
+                    missingFiles.Add(parts[1]);
                 }
-                else
+                else if (parts.Length != 2)
                 {
-                    missingFiles.Add(processPath);
+                    MessageBox.Show("配置文件错误, 请不要私自修改文件\n如需修改, 请严格按照格式进行修改");
+                    return;
                 }
             }
 
+            // 提示已失效路径
             if (missingFiles.Count > 0)
             {
                 string missingMessage = "以下程序不存在:\n" + string.Join("\n", missingFiles);
@@ -152,8 +149,8 @@ namespace ProcessMonitorAPP
         /// </summary>
         public void ReloadAndMonitorProcesses()
         {
+            // 取消现有的监控任务并清理任务列表
             _cancellationTokenSource.Cancel();
-            // 等待并清理现有监控任务
             foreach (var task in _monitorTasks)
             {
                 try
