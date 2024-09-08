@@ -152,6 +152,7 @@ namespace ProcessMonitorAPP
                     {
                         name = Path.GetFileNameWithoutExtension(processPath);
                         nameTextBox.Text = name;  // 自动填写名称到界面上
+                        pathTextBox.Text = processPath;  // 自动填写整理后的路径到界面上
                     }
 
                     // 只有当文件存在时才添加到保存列表
