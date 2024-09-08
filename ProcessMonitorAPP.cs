@@ -468,9 +468,9 @@ namespace ProcessMonitorAPP
             string logFilePath = System.IO.Path.Combine(modPath, "ErrorLogs.txt"); // 创建日志文件的完整路径
 
             // 检查目录是否存在，如果不存在，则创建
-            if (!Directory.Exists(modPath))
+            if (!Directory.Exists(logFilePath))
             {
-                Directory.CreateDirectory(modPath);
+                Directory.CreateDirectory(logFilePath);
             }
 
             // 将错误信息追加到日志文件
