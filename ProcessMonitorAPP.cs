@@ -73,7 +73,13 @@ namespace ProcessMonitorAPP
             }
 
             modPath = LoaddllPath("ProcessMonitorAPP"); // 初始化mod路径
-            txtfilePath = System.IO.Path.Combine(modPath, "process_paths.txt"); // 使用modPath变量
+            string parentDirectory = Directory.GetParent(modPath).FullName;// 获取modPath的父目录
+            string newFolder = System.IO.Path.Combine(parentDirectory, "取消置顶文件");// 创建名为"取消置顶文件"的新文件夹
+            if (!Directory.Exists(newFolder))
+            {
+                Directory.CreateDirectory(newFolder);
+            }
+            txtfilePath = System.IO.Path.Combine(newFolder, "process_paths.txt");// 设置process_paths.txt的新路径
             if (!File.Exists(txtfilePath))
             {
                 // MessageBox.Show("配置文件不存在，监控不会启动。");
@@ -464,8 +470,14 @@ namespace ProcessMonitorAPP
         /// <param name="errorMessage"></param>
         private void LogErrorToFile(string errorMessage)
         {
+            string parentDirectory = Directory.GetParent(modPath).FullName;// 获取modPath的父目录
+            string newFolder = System.IO.Path.Combine(parentDirectory, "取消置顶文件");// 创建名为"取消置顶文件"的新文件夹
+            if (!Directory.Exists(newFolder))
+            {
+                Directory.CreateDirectory(newFolder);
+            }
             // 使用与 process_paths.txt 相同的路径
-            string logFilePath = System.IO.Path.Combine(modPath, "ErrorLogs.txt"); // 创建日志文件的完整路径
+            string logFilePath = System.IO.Path.Combine(newFolder, "ErrorLogs.txt"); // 创建日志文件的完整路径
 
             // 检查目录是否存在，如果不存在，则创建
             if (!Directory.Exists(logFilePath))
