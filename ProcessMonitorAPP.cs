@@ -120,20 +120,21 @@ namespace ProcessMonitorAPP
             foreach (var line in lines)
             {
                 var parts = line.Split(new[] { '|' }, 2);
-                if (parts.Length == 2 && File.Exists(parts[1]))
+                if (parts.Length != 2) // 首先检查格式是否正确
                 {
-                    _runningProcesses[parts[1]] = false; // 添加到字典并初始化为false 
-                    StartMonitoring(parts[1], false);
+                    MessageBox.Show("配置文件错误, 请不要私自修改文件\n如需修改, 请严格按照 '名称|路径' 的格式进行修改");
+                    return; // 发现格式错误即退出方法
                 }
-                else if (!File.Exists(parts[1]))
+
+                if (!File.Exists(parts[1])) // 检查文件是否存在
                 {
                     missingFiles.Add(parts[1]);
+                    continue; // 文件不存在则记录下来，并处理下一行
                 }
-                else if (parts.Length != 2)
-                {
-                    MessageBox.Show("配置文件错误, 请不要私自修改文件\n如需修改, 请严格按照格式进行修改");
-                    return;
-                }
+
+                // 文件存在且格式正确时，添加到监控列表
+                _runningProcesses[parts[1]] = false;
+                StartMonitoring(parts[1], false);
             }
 
             // 提示已失效路径
