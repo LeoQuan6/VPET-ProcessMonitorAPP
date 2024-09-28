@@ -16,9 +16,9 @@
         <ScrollViewer VerticalScrollBarVisibility="Auto">
             <StackPanel x:Name="InputPanel" VerticalAlignment="Top" HorizontalAlignment="Center">
                 <!-- Existing buttons and other controls, styled with theme colors and rounded corners -->
-                <Button pu:ButtonHelper.CornerRadius="4" Content="增添路径" Background="{DynamicResource SecondaryLight}" x:Name="AddPath_Button"
+                <Button pu:ButtonHelper.CornerRadius="4" Content="{ll:Str 增添路径}" Background="{DynamicResource SecondaryLight}" x:Name="AddPath_Button"
                 BorderBrush="{DynamicResource SecondaryDark}" BorderThickness="2" Click="AddPathTextBox_Click" Margin="10,10,10,0" Width="100"/>
-                <Button pu:ButtonHelper.CornerRadius="4" Content="保存路径" Background="{DynamicResource SecondaryLight}" x:Name="SavePath_Button"
+                <Button pu:ButtonHelper.CornerRadius="4" Content="{ll:Str 保存路径}" Background="{DynamicResource SecondaryLight}" x:Name="SavePath_Button"
                 BorderBrush="{DynamicResource SecondaryDark}" BorderThickness="2" Click="SavePathsButton_Click" Margin="10,10,10,10" Width="100"/>
 
                 <!-- Adding prompts -->
@@ -28,7 +28,7 @@
                         <ColumnDefinition Width="300"/>
                         <ColumnDefinition Width="100"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="自定义程序名称&#x0a;(可不填)" Grid.Column="0" Margin="0,0,0,0" TextAlignment="Center"
+                    <TextBlock Text="{ll:Str 自定义程序名称(可不填)}" Grid.Column="0" Margin="0,0,0,0" TextAlignment="Center"
                                HorizontalAlignment="Center" VerticalAlignment="Top" TextWrapping="Wrap" 
                                Background="{DynamicResource SecondaryLight}" Padding="5" FontSize="12"/>
 

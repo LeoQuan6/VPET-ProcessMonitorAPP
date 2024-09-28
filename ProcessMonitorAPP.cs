@@ -27,7 +27,7 @@ namespace ProcessMonitorAPP
         public ProcessMonitor(IMainWindow mainwin) : base(mainwin)
         {
         }
-        // 使用字段初始化
+        //-------------- 使用字段初始化--------------
         /// <summary>
         /// 监控任务统计
         /// </summary>
@@ -58,17 +58,17 @@ namespace ProcessMonitorAPP
             modset.Visibility = Visibility.Visible;
             var menuItem = new MenuItem()
             {
-                Header = "取消置顶",
+                Header = "取消置顶".Translate(),
                 HorizontalContentAlignment = HorizontalAlignment.Center
             };
             menuItem.Click += (s, e) => { Setting(); };
             modset.Items.Add(menuItem);
 
             // 初始化 Set
-            Set = new Setting(MW.Set["取消置顶"]);
+            Set = new Setting(MW.Set["取消置顶".Translate()]);
             if (!Set.Enable)
             {
-                MessageBox.Show("监控并未正常启动");
+                MessageBox.Show("监控并未正常启动".Translate());
                 return;
             }
 
@@ -94,7 +94,7 @@ namespace ProcessMonitorAPP
         /// </summary>
         public override void LoadDIY()
         {
-            MW.Main.ToolBar.AddMenuButton(VPet_Simulator.Core.ToolBar.MenuType.DIY, "取消置顶", Setting);
+            MW.Main.ToolBar.AddMenuButton(VPet_Simulator.Core.ToolBar.MenuType.DIY, "取消置顶".Translate(), Setting);
         }
         /// <summary>
         /// 生成winSetting对话框资源
@@ -143,7 +143,7 @@ namespace ProcessMonitorAPP
                 var parts = line.Split(new[] { '|' }, 2);
                 if (parts.Length != 2) // 首先检查格式是否正确
                 {
-                    MessageBox.Show("配置文件错误, 请不要私自修改文件\n如需修改, 请严格按照 '名称|路径' 的格式进行修改");
+                    MessageBox.Show("配置文件错误, 请不要私自修改文件!\n如需修改, 请严格按照 '名称|路径' 的格式进行修改".Translate());
                     return; // 发现格式错误即退出方法
                 }
 
@@ -161,7 +161,7 @@ namespace ProcessMonitorAPP
             // 提示已失效路径
             if (missingFiles.Count > 0)
             {
-                string missingMessage = "以下程序不存在:\n" + string.Join("\n", missingFiles);
+                string missingMessage = "以下程序不存在:\n".Translate() + string.Join("\n", missingFiles);
                 MessageBox.Show(missingMessage);
             }
         }
@@ -471,7 +471,7 @@ namespace ProcessMonitorAPP
         private void LogErrorToFile(string errorMessage)
         {
             string parentDirectory = Directory.GetParent(modPath).FullName;// 获取modPath的父目录
-            string newFolder = System.IO.Path.Combine(parentDirectory, "取消置顶文件");// 创建名为"取消置顶文件"的新文件夹
+            string newFolder = System.IO.Path.Combine(parentDirectory, "取消置顶文件".Translate());// 创建名为"取消置顶文件"的新文件夹
             if (!Directory.Exists(newFolder))
             {
                 Directory.CreateDirectory(newFolder);

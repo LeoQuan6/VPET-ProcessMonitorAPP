@@ -187,7 +187,7 @@ namespace ProcessMonitorAPP
             }
             File.WriteAllLines(txtfilePath, lines);
 
-            MessageBox.Show("路径保存成功", "Information", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show("路径保存成功!".Translate(), "Information", MessageBoxButton.OK, MessageBoxImage.Information);
 
             // 重新加载并启动监控程序
             vts.ReloadAndMonitorProcesses();
@@ -206,7 +206,7 @@ namespace ProcessMonitorAPP
             TextBox pathTextBox = new TextBox { Text = text, Width = 300, Margin = new Thickness(10, 10, 0, 0) };
             Button removeButton = new Button
             {
-                Content = "移除",
+                Content = "移除".Translate(),
                 Margin = new Thickness(10, 10, 0, 0),
                 Background = AddPath_Button.Background,
                 // Background = (Brush)new BrushConverter().ConvertFrom("#FFADD7F9"),
