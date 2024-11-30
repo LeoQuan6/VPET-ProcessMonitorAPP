@@ -16,6 +16,8 @@ using VPet_Simulator.Windows;
 using Shell32;  // 添加对Shell32的引用以解析快捷方式
 using System.Collections.Generic;
 using System.Windows.Media;
+using IWshRuntimeLibrary;
+using File = System.IO.File;
 
 namespace ProcessMonitorAPP
 {
@@ -108,16 +110,18 @@ namespace ProcessMonitorAPP
         /// <returns>快捷方式指向的文件的完整路径; 如果快捷方式无效或无法解析 则为 null</returns>
         private string ResolveShortcut(string shortcutPath)
         {
-            if (Path.GetExtension(shortcutPath).ToLower() == ".lnk")
+            try
             {
-                Shell shell = new Shell();
-                Folder folder = shell.NameSpace(Path.GetDirectoryName(shortcutPath));
-                FolderItem folderItem = folder.ParseName(Path.GetFileName(shortcutPath));
-                if (folderItem != null)
+                if (Path.GetExtension(shortcutPath).ToLower() == ".lnk")
                 {
-                    Shell32.ShellLinkObject link = (Shell32.ShellLinkObject)folderItem.GetLink;
-                    return link.Path;
+                    WshShell wshShell = new WshShell();
+                    IWshShortcut shortcut = (IWshShortcut)wshShell.CreateShortcut(shortcutPath);
+                    return shortcut.TargetPath;
                 }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error resolving shortcut: " + ex.Message);
             }
             return null;
         }
