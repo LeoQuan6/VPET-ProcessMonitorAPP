@@ -13,7 +13,6 @@ using System.Threading.Tasks;
 using VPet_Simulator.Core;
 using VPet_Simulator.Windows.Interface;
 using VPet_Simulator.Windows;
-using Shell32;  // 添加对Shell32的引用以解析快捷方式
 using System.Collections.Generic;
 using System.Windows.Media;
 using IWshRuntimeLibrary;
@@ -28,13 +27,31 @@ namespace ProcessMonitorAPP
     {
         ProcessMonitor vts;
         /// <summary>
-        /// 添加字段来来接收由ProcessMonitorAPP.cs传来的mod路径
+        /// 添加字段来接收由ProcessMonitorAPP.cs传来的mod路径
         /// </summary>
         private string modPath;
         /// <summary>
-        /// 添加字段来来接收由ProcessMonitorAPP.cs传来的process_paths.txt的路径
+        /// 添加字段来接收由ProcessMonitorAPP.cs传来的process_paths.txt的路径
         /// </summary>
         private string txtfilePath;
+        /// <summary>
+        /// 添加字段来接收由ProcessMonitorAPP.cs传来的monitor_set.txt的路径
+        /// </summary>
+        private string txtsetPath;
+        /// <summary>
+        /// 添加布尔值来接收由ProcessMonitorAPP.cs传来的EnableFullScreenMonitor属性值
+        /// </summary>
+        private bool EnableFullScreenMonitor;
+        /// <summary>
+        /// 添加布尔值来保存用户对于全屏取消置顶的临时设置
+        /// </summary>
+        private bool isFullScreenMonitorEnabled;
+        /// <summary>
+        /// 记录此时全屏窗口数量
+        /// 如果EnableFullScreenMonitor为false时, 该数值应保持为0
+        /// </summary>
+        public int CountFullScreen { get; set; }
+
 
         /// <summary>
         /// 加载设置窗口
@@ -43,11 +60,14 @@ namespace ProcessMonitorAPP
         public winSetting(ProcessMonitor vts)
         {
             InitializeComponent();
-            //Resources = Application.Current.Resources;
             this.vts = vts;
             modPath = vts.modPath;  // 从ProcessMonitor实例获取modPath
             txtfilePath = vts.txtfilePath;  // 从ProcessMonitor实例获取txtfilePath
+            txtsetPath = vts.txtsetPath;  // 从ProcessMonitor实例获取txtsetPath
             LoadPaths(); // 加载保存的路径
+            vts.LoadOtherSettings();
+            EnableFullScreenMonitor = vts.EnableFullScreenMonitor;
+            EnableFullScreenMonitorSwitchOn.IsChecked = EnableFullScreenMonitor; // 显示是否启用全屏监控状态
             SetupDragDrop();  // 设置拖放支持
         }
         
@@ -55,6 +75,15 @@ namespace ProcessMonitorAPP
         {
             vts.winSetting = null;
         }
+
+        /// <summary>
+        /// 通过静态方法启动Processmonitor类中定时器_FullScreenMonitor
+        /// </summary>
+        private static void StartTimerFullScreenMonitor() => ProcessMonitor.StartTimerFullScreenMonitor();  // 调用静态方法启动定时器
+
+        // 通过静态方法停止Processmonitor类中定时器_FullScreenMonitor
+        private static void StopTimerFullScreenMonitor() => ProcessMonitor.StopTimerFullScreenMonitor();  // 调用静态方法停止定时器
+
         /// <summary>
         /// 配置窗口以允许拖拽文件进入窗口
         /// 此方法初始化窗口的拖拽相关事件处理 允许文件被拖放到窗口上
@@ -121,10 +150,13 @@ namespace ProcessMonitorAPP
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Error resolving shortcut: " + ex.Message);
+                string error = "Error resolving shortcut: " + ex.Message;
+                MessageBox.Show(error);
+                vts.LogErrorToFile(error);  // 记录错误到文件
             }
             return null;
         }
+
 
         /// <summary>
         /// 存储一组文本框对 每对文本框用于输入和显示进程的名称和路径
@@ -148,6 +180,11 @@ namespace ProcessMonitorAPP
                         AddPathTextBox(parts[0], parts[1], true);
                     }
                 }
+            }
+            // 如果 _textBoxes 为空或文件内容为空，确保至少有一行空的输入框
+            if (_textBoxes.Count == 0)
+            {
+                AddPathTextBox(); // 添加一行空的输入框
             }
         }
 
@@ -191,6 +228,12 @@ namespace ProcessMonitorAPP
             }
             File.WriteAllLines(txtfilePath, lines);
 
+            // 如果 _textBoxes 为空或文件内容为空，确保至少有一行空的输入框
+            if (_textBoxes.Count == 0)
+            {
+                AddPathTextBox(); // 添加一行空的输入框
+            }
+
             MessageBox.Show("路径保存成功!".Translate(), "Information", MessageBoxButton.OK, MessageBoxImage.Information);
 
             // 重新加载并启动监控程序
@@ -219,7 +262,7 @@ namespace ProcessMonitorAPP
                 BorderThickness = new Thickness(2)
             };
             // 设置按钮为圆角
-            pu: ButtonHelper.SetCornerRadius(removeButton, new CornerRadius(4));
+            ButtonHelper.SetCornerRadius(removeButton, new CornerRadius(4));
 
             removeButton.Click += (s, e) => RemovePath(panel);
 
@@ -233,6 +276,46 @@ namespace ProcessMonitorAPP
         }
 
         /// <summary>
+        /// 当用户开启全屏监控勾选框状态时调用
+        /// </summary>
+        private void EnableFullScreenMonitorSwitchOn_Checked(object sender, RoutedEventArgs e)
+        {
+            isFullScreenMonitorEnabled = true;
+            SaveOtherSettings();
+            vts.MonitorFullScreen();
+            StartTimerFullScreenMonitor();  // 启动全屏窗口监测定时器
+        }
+        /// <summary>
+        /// 当用户关闭全屏监控勾选框状态时调用
+        /// </summary>
+        private void EnableFullScreenMonitorSwitchOn_Unchecked(object sender, RoutedEventArgs e)
+        {
+            isFullScreenMonitorEnabled = false;
+            SaveOtherSettings();
+            vts.MonitorFullScreen();
+            StopTimerFullScreenMonitor();  // 停止全屏窗口监测定时器
+        }
+
+        public void DisableFullScreenMonitor()
+        {
+            isFullScreenMonitorEnabled = false;
+            SaveOtherSettings();
+            vts.MonitorFullScreen();
+            StopTimerFullScreenMonitor();  // 停止全屏窗口监测定时器
+        }
+
+        /// <summary>
+        /// 保存其他设置
+        /// </summary>
+        private void SaveOtherSettings()
+        {
+            EnableFullScreenMonitor = isFullScreenMonitorEnabled;
+            List<string> lines = new List<string>();
+            lines.Add($"FullScreenMonitorSetting|{EnableFullScreenMonitor}");
+            File.WriteAllLines(txtsetPath, lines);
+        }
+
+        /// <summary>
         /// 从界面中移除指定的StackPanel控件 并更新内部数据结构以反映这一变化
         /// </summary>
         /// <param name="panel"></param>
@@ -242,6 +325,12 @@ namespace ProcessMonitorAPP
             var nameTextBox = (TextBox)panel.Children[0];
             var pathTextBox = (TextBox)panel.Children[1];
             _textBoxes.Remove((nameTextBox, pathTextBox));
+
+            // 如果 _textBoxes 为空或文件内容为空，确保至少有一行空的输入框
+            if (_textBoxes.Count == 0)
+            {
+                AddPathTextBox(); // 添加一行空的输入框
+            }
         }
     }
 }

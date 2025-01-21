@@ -11,7 +11,6 @@ namespace ProcessMonitorAPP
         public Setting()
         {
         }
-        internal Setting Set { get; set; }
         /// <summary>
         /// 启用ProcessMonitorApp
         /// </summary>

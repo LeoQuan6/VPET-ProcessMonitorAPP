@@ -17,6 +17,8 @@ using System.ComponentModel;
 using System.Windows.Documents;
 using System.Collections.Concurrent;
 using System.Windows.Shapes;
+using ProcessMonitorAPP;
+using System.Windows.Threading;  // 引入DispatcherTimer
 
 namespace ProcessMonitorAPP
 {
@@ -48,7 +50,27 @@ namespace ProcessMonitorAPP
         /// 存储process_paths.txt的路径
         /// </summary>
         public string txtfilePath;
-
+        /// <summary>
+        /// 存储monitor_set.txt的路径
+        ///</summary>
+        public string txtsetPath;
+        /// <summary>
+        /// 保存是否启用全屏监控的状态
+        /// </summary>
+        public bool EnableFullScreenMonitor {  get; set; }
+        /// <summary>
+        /// 定义全屏窗口监测定时器
+        /// </summary>
+        private static DispatcherTimer _FullScreenMonitorTimer;
+        /// <summary>
+        /// 定义程序监控定时器
+        /// </summary>
+        private DispatcherTimer _ProcessMonitorTimer;
+        /// <summary>
+        /// 记录此时全屏窗口数量
+        /// 如果EnableFullScreenMonitor为false时, 该数值应保持为0
+        /// </summary>
+        public bool HasFullScreen { get; set; }
         /// <summary>
         /// 当桌宠开启，加载mod的时候会调用这个函数
         /// </summary>
@@ -80,13 +102,19 @@ namespace ProcessMonitorAPP
                 Directory.CreateDirectory(newFolder);
             }
             txtfilePath = System.IO.Path.Combine(newFolder, "process_paths.txt");// 设置process_paths.txt的新路径
-            if (!File.Exists(txtfilePath))
+            txtsetPath = System.IO.Path.Combine(newFolder, "monitor_set.txt");// 设置monitor_set.txt的新路径
+            if (!File.Exists(txtfilePath) | !File.Exists(txtsetPath))
             {
                 // MessageBox.Show("配置文件不存在，监控不会启动。");
                 return;
             }
-
+            LoadOtherSettings();
             LoadAndMonitorProcesses();
+            MonitorFullScreen();
+            _ProcessMonitorTimer = new DispatcherTimer();
+            _ProcessMonitorTimer.Interval = TimeSpan.FromSeconds(1);  // 每秒检查一次
+            _ProcessMonitorTimer.Tick += ShouldToggleTopMost; // 每秒调用检查方法
+            _ProcessMonitorTimer.Start();  // 启动程序监控定时器
         }
 
         /// <summary>
@@ -112,13 +140,17 @@ namespace ProcessMonitorAPP
                 {
                     File.Create(txtfilePath).Dispose(); // 创建并立即释放文件以避免锁定
                 }
+                if (!File.Exists(txtsetPath))
+                {
+                    File.Create(txtsetPath).Dispose(); // 创建并立即释放文件以避免锁定
+                    DefaultOtherSettings();
+                }
                 winSetting = new winSetting(this);
                 winSetting.Closed += (sender, e) => winSetting = null; // 确保在窗口关闭时将实例设置为 null
                 winSetting.Show();
             }
             else
             {
-                winSetting.Topmost = true;  // 确保窗口在最顶部
                 winSetting.Activate();      // 激活窗口，确保用户能看到
                 if (winSetting.WindowState == WindowState.Minimized)
                     winSetting.WindowState = WindowState.Normal;  // 如果窗口被最小化，恢复窗口
@@ -166,6 +198,106 @@ namespace ProcessMonitorAPP
             }
         }
 
+        public void MonitorFullScreen()
+        {
+            if (EnableFullScreenMonitor)
+            {
+                if (_FullScreenMonitorTimer == null)
+                {
+                    _FullScreenMonitorTimer = new DispatcherTimer();
+                    _FullScreenMonitorTimer.Interval = TimeSpan.FromSeconds(1);  // 每秒检查一次
+                    _FullScreenMonitorTimer.Tick += CheckFullScreenStatus; // 每秒调用检查方法
+                }
+                HasFullScreen = false;
+                StartTimerFullScreenMonitor();
+            }
+            else
+            {
+                HasFullScreen = false;
+            }
+        }
+
+        /// <summary>
+        /// 启动定时器_FullScreenMonitorTimer的静态方法
+        /// </summary>
+        public static void StartTimerFullScreenMonitor()
+        {
+            if (_FullScreenMonitorTimer != null && !_FullScreenMonitorTimer.IsEnabled)
+            {
+                _FullScreenMonitorTimer.Start();
+            }
+        }
+
+        /// <summary>
+        /// 停止定时器_FullScreenMonitorTimer的静态方法
+        /// </summary>
+        public static void StopTimerFullScreenMonitor()
+        {
+            if (_FullScreenMonitorTimer != null && _FullScreenMonitorTimer.IsEnabled)
+            {
+                _FullScreenMonitorTimer.Stop();
+            }
+        }
+
+
+        /// <summary>
+        /// 全屏窗口数量的更新
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void CheckFullScreenStatus(object? sender, EventArgs e)
+        {
+            HasFullScreen = await FullScreenDetector.GetFullScreenWindowCount();
+        }
+
+        /// <summary>
+        /// 启动桌宠时 加载设置文件中的其他设置
+        /// </summary>
+        public void LoadOtherSettings()
+        {
+            var setlines = File.ReadAllLines(txtsetPath);
+            if (setlines == null)
+            {
+                DefaultOtherSettings();
+            }
+            else
+            {
+                foreach (var line in setlines)
+                {
+                    var parts = line.Split(new[] { '|' }, 2);
+                    if (parts.Length != 2) // 首先检查格式是否正确
+                    {
+                        MessageBox.Show("配置文件错误, 请不要私自修改文件!\n如需修改, 请严格按照 '设置名|bool' 的格式进行修改".Translate());
+                        return; // 发现格式错误即退出方法
+                    }
+                    if (parts[0] == "FullScreenMonitorSetting")
+                    {
+                        if (parts[1] == "True")
+                        {
+                            EnableFullScreenMonitor = true;
+                        }
+                        else if (parts[1] == "False")
+                        {
+                            EnableFullScreenMonitor = false;
+                        }
+                        else
+                        {
+                            MessageBox.Show("配置文件错误, 请不要私自修改文件!\n如需修改, 请严格按照 '设置名|bool' 的格式进行修改".Translate());
+                            return; // 发现格式错误即退出方法
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// 将其他设置调整为默认值
+        /// </summary>
+        public void DefaultOtherSettings()
+        {
+            EnableFullScreenMonitor = false;
+        }
+
         /// <summary>
         /// 重新加载监控程序
         /// </summary>
@@ -197,15 +329,6 @@ namespace ProcessMonitorAPP
                     newPaths[parts[1]] = wasRunning;  // 更新新字典, 并输入对应值
                 }
             }
-            // 如果被监控的程序没有在运行, 则恢复置顶, 有则再次取消置顶
-            if (newPaths.Count(p => p.Value) == 0)
-            {
-                ToggleTopMost(true);
-            }
-            else 
-            {
-                ToggleTopMost(false);
-            }
             _runningProcesses = new ConcurrentDictionary<string, bool>(newPaths); // 更新_runningProcesses为最新的路径集合
             _cancellationTokenSource = new CancellationTokenSource();  // 重新初始化取消标记源
             
@@ -224,7 +347,7 @@ namespace ProcessMonitorAPP
             }
             if (missingFiles.Count > 0)
             {
-                string missingMessage = "以下程序不存在:\n" + string.Join("\n", missingFiles);
+                string missingMessage = "以下程序不存在:\n".Translate() + string.Join("\n", missingFiles);
                 MessageBox.Show(missingMessage);
             }
         }
@@ -381,9 +504,28 @@ namespace ProcessMonitorAPP
             // 重置 CancellationTokenSource 以便后续使用
             _cancellationTokenSource = new CancellationTokenSource();
         }
- 
+
         /// <summary>
-        /// 设置桌宠窗口是否应置顶
+        /// 判断是否需要置顶窗口
+        /// </summary>
+        private async void ShouldToggleTopMost(object sender, EventArgs e)
+        {
+            if ((_runningProcesses.Count(p => p.Value) > 0) || HasFullScreen)
+            {
+                ToggleTopMost(false);
+                await Task.Delay(200);  // 异步等待
+                ToggleTopMost(false);
+            }
+            else if ((_runningProcesses.Count(p => p.Value) == 0) && !HasFullScreen)
+            {
+                ToggleTopMost(true);
+                await Task.Delay(200);  // 异步等待
+                ToggleTopMost(true);
+            }
+        }
+
+        /// <summary>
+        /// 设置桌宠窗口置顶状态
         /// </summary>
         /// <param name="topMost">true则置顶 false则取消置顶。</param>
         public void ToggleTopMost(bool topMost)
@@ -404,26 +546,6 @@ namespace ProcessMonitorAPP
             {
                 Application.Current.Dispatcher.Invoke(() => {
                     _runningProcesses[processPath] = true;  // 更新字典值
-                    if (_runningProcesses.Count(p => p.Value) > 0) // 检查是否有任何运行中的进程
-                    {
-                        ToggleTopMost(false);
-                    }
-                });
-
-                await Task.Delay(500);  // 异步等待500毫秒
-                Application.Current.Dispatcher.Invoke(() => {
-                    if (_runningProcesses.Count(p => p.Value) > 0) // 检查是否有任何运行中的进程
-                    {
-                        ToggleTopMost(false); // 再次确认取消置顶
-                    }
-                });
-
-                await Task.Delay(500);  // 异步等待500毫秒
-                Application.Current.Dispatcher.Invoke(() => {
-                    if (_runningProcesses.Count(p => p.Value) > 0) // 检查是否有任何运行中的进程
-                    {
-                        ToggleTopMost(false); // 再次确认取消置顶
-                    }
                 });
             }
         }
@@ -440,27 +562,7 @@ namespace ProcessMonitorAPP
             {
                 Application.Current.Dispatcher.Invoke(() => {
                     _runningProcesses[processPath] = false;  // 更新字典值
-                    if (_runningProcesses.Count(p => p.Value) == 0)
-                    {
-                        ToggleTopMost(true); // 尝试恢复置顶
-                    }
                 });
-
-                await Task.Delay(500);  // 异步等待500毫秒
-                if (_runningProcesses.Count(p => p.Value) == 0)
-                {
-                    Application.Current.Dispatcher.Invoke(() => {
-                        ToggleTopMost(true); // 再次确认置顶
-                    });
-                }
-
-                await Task.Delay(500);  // 异步等待500毫秒
-                if (_runningProcesses.Count(p => p.Value) == 0)
-                {
-                    Application.Current.Dispatcher.Invoke(() => {
-                        ToggleTopMost(true); // 再次确认置顶
-                    });
-                }
             }
         }
 
@@ -468,10 +570,10 @@ namespace ProcessMonitorAPP
         /// 错误日志记录
         /// </summary>
         /// <param name="errorMessage"></param>
-        private void LogErrorToFile(string errorMessage)
+        public void LogErrorToFile(string errorMessage)
         {
             string parentDirectory = Directory.GetParent(modPath).FullName;// 获取modPath的父目录
-            string newFolder = System.IO.Path.Combine(parentDirectory, "取消置顶文件".Translate());// 创建名为"取消置顶文件"的新文件夹
+            string newFolder = System.IO.Path.Combine(parentDirectory, "取消置顶文件");// 创建名为"取消置顶文件"的新文件夹
             if (!Directory.Exists(newFolder))
             {
                 Directory.CreateDirectory(newFolder);

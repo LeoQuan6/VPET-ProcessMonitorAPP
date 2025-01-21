@@ -4,7 +4,7 @@
         xmlns:pu="clr-namespace:Panuon.WPF.UI;assembly=Panuon.WPF.UI"
         xmlns:ll="clr-namespace:LinePutScript.Localization.WPF;assembly=LinePutScript.Localization.WPF"
         Title="{ll:Str 取消置顶}" Height="450" Width="800"
-        FontSize="16" ResizeMode="NoResize" WindowState="Normal"
+        FontSize="16" ResizeMode="CanResize" WindowState="Normal"
         Background="{DynamicResource PrimaryLighter}" HorizontalAlignment="Center" VerticalAlignment="Center">
 
     <Window.Resources>
@@ -13,8 +13,16 @@
 
     <Grid Background="{DynamicResource PrimaryLighter}">
         <!-- ScrollViewer added around StackPanel for scrolling capability -->
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <ScrollViewer VerticalScrollBarVisibility="Hidden">
             <StackPanel x:Name="InputPanel" VerticalAlignment="Top" HorizontalAlignment="Center">
+                <!-- 全屏监控开关 -->
+                <pu:Switch x:Name="EnableFullScreenMonitorSwitchOn" Content="{ll:Str 启用全屏监控}"
+                           ToolTip="{ll:Str 有窗口全屏时自动取消置顶}" ToolTipService.InitialShowDelay="100"
+                           BorderBrush="{DynamicResource SecondaryDark}" CheckedBorderBrush="{DynamicResource DARKPrimary}"
+                           Background="{DynamicResource SecondaryLight}" CheckedBackground="{DynamicResource DARKPrimary}"  BorderThickness="2"
+                           Margin="10,10,10,10" VerticalAlignment="Top" HorizontalAlignment="Center"
+                           Checked="EnableFullScreenMonitorSwitchOn_Checked" Unchecked="EnableFullScreenMonitorSwitchOn_Unchecked"
+                    />
                 <!-- Existing buttons and other controls, styled with theme colors and rounded corners -->
                 <Button pu:ButtonHelper.CornerRadius="4" Content="{ll:Str 增添路径}" Background="{DynamicResource SecondaryLight}" x:Name="AddPath_Button"
                 BorderBrush="{DynamicResource SecondaryDark}" BorderThickness="2" Click="AddPathTextBox_Click" Margin="10,10,10,0" Width="100"/>
