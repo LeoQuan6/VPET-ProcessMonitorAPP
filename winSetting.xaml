@@ -13,7 +13,8 @@
 
     <Grid Background="{DynamicResource PrimaryLighter}">
         <!-- ScrollViewer added around StackPanel for scrolling capability -->
-        <ScrollViewer VerticalScrollBarVisibility="Hidden">
+        <ScrollViewer VerticalScrollBarVisibility="Visible" HorizontalScrollBarVisibility="Disabled" 
+                      MaxHeight="400" Margin="10">
             <StackPanel x:Name="InputPanel" VerticalAlignment="Top" HorizontalAlignment="Center">
                 <!-- 全屏监控开关 -->
                 <pu:Switch x:Name="EnableFullScreenMonitorSwitchOn" Content="{ll:Str 启用全屏监控}"
