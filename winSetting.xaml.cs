@@ -17,6 +17,7 @@ using System.Collections.Generic;
 using System.Windows.Media;
 using IWshRuntimeLibrary;
 using File = System.IO.File;
+using static ProcessMonitorAPP.winSetting;
 
 namespace ProcessMonitorAPP
 {
@@ -47,10 +48,14 @@ namespace ProcessMonitorAPP
         /// </summary>
         private bool isFullScreenMonitorEnabled;
         /// <summary>
-        /// 记录此时全屏窗口数量
-        /// 如果EnableFullScreenMonitor为false时, 该数值应保持为0
+        /// 存储一组文本框对 每对文本框用于输入和显示进程的名称和路径
+        /// 该列表被用于动态管理界面上的进程配置输入字段 允许用户添加、编辑和删除进程监控条目
         /// </summary>
-        public int CountFullScreen { get; set; }
+        private List<(TextBox nameTextBox, TextBox pathTextBox)> _textBoxes = new List<(TextBox, TextBox)>();
+        /// <summary>
+        /// 
+        /// </summary>
+        private List<PathPanelElements> _pathPanelElements = new List <PathPanelElements>();
 
 
         /// <summary>
@@ -157,13 +162,6 @@ namespace ProcessMonitorAPP
             return null;
         }
 
-
-        /// <summary>
-        /// 存储一组文本框对 每对文本框用于输入和显示进程的名称和路径
-        /// 该列表被用于动态管理界面上的进程配置输入字段 允许用户添加、编辑和删除进程监控条目
-        /// </summary>
-        private List<(TextBox nameTextBox, TextBox pathTextBox)> _textBoxes = new List<(TextBox, TextBox)>();
-
         /// <summary>
         /// 从配置文件读取路径信息 并初始化对应的文本框
         /// </summary>
@@ -202,21 +200,29 @@ namespace ProcessMonitorAPP
         private void SavePathsButton_Click(object sender, RoutedEventArgs e)
         {
             List<string> lines = new List<string>();
-            foreach (var (nameTextBox, pathTextBox) in _textBoxes)
+            List<PathPanelElements> deletepathpanel = new List<PathPanelElements>();
+            foreach (PathPanelElements pathpanel in _pathPanelElements)
             {
-                string name = nameTextBox.Text;
-                string processPath = pathTextBox.Text.Trim(); // 移除路径两端的空白
+                string name = pathpanel.NameTextBox.Text;
+                string processPath = pathpanel.PathTextBox.Text.Trim(); // 移除路径两端的空白
                 processPath = processPath.Trim('"');// 移除路径两端的引号
 
                 // 路径不为空才进行保存等操作
                 if (!string.IsNullOrWhiteSpace(processPath))
                 {
+                    string processpathName = Path.GetFileNameWithoutExtension(processPath);
+                    if (processpathName == "VPet-Simulator.Windows" || processpathName == "VPet.Solution")
+                    {
+                        deletepathpanel.Add(pathpanel);
+                        MessageBox.Show("请不要用该mod监测桌宠程序自身".Translate());
+                        continue;
+                    }
                     // 如果路径不为空且名称为空，则自动生成名称
                     if (string.IsNullOrWhiteSpace(name))
                     {
                         name = Path.GetFileNameWithoutExtension(processPath);
-                        nameTextBox.Text = name;  // 自动填写名称到界面上
-                        pathTextBox.Text = processPath;  // 自动填写整理后的路径到界面上
+                        pathpanel.NameTextBox.Text = name;  // 自动填写名称到界面上
+                        pathpanel.PathTextBox.Text = processPath;  // 自动填写整理后的路径到界面上
                     }
 
                     // 只有当文件存在时才添加到保存列表
@@ -227,6 +233,10 @@ namespace ProcessMonitorAPP
                 }
             }
             File.WriteAllLines(txtfilePath, lines);
+            foreach (PathPanelElements pathpanel in deletepathpanel)
+            {
+                RemovePath(pathpanel.Panel);
+            }
 
             // 如果 _textBoxes 为空或文件内容为空，确保至少有一行空的输入框
             if (_textBoxes.Count == 0)
@@ -248,31 +258,12 @@ namespace ProcessMonitorAPP
         /// <param name="isSavedPath">指示该路径是否是已保存路径，默认为 false，此参数目前未使用，可以用于将来的扩展。</param>
         private void AddPathTextBox(string name = "", string text = "", bool isSavedPath = false)
         {
-            StackPanel panel = new StackPanel { Orientation = Orientation.Horizontal };
-            TextBox nameTextBox = new TextBox { Text = name, Width = 100, Margin = new Thickness(0, 10, 0, 0) };
-            TextBox pathTextBox = new TextBox { Text = text, Width = 300, Margin = new Thickness(10, 10, 0, 0) };
-            Button removeButton = new Button
-            {
-                Content = "移除".Translate(),
-                Margin = new Thickness(10, 10, 0, 0),
-                Background = AddPath_Button.Background,
-                // Background = (Brush)new BrushConverter().ConvertFrom("#FFADD7F9"),
-                BorderBrush = AddPath_Button.BorderBrush,
-                // BorderBrush = (Brush)new BrushConverter().ConvertFrom("#FF6BB1E9"),
-                BorderThickness = new Thickness(2)
-            };
-            // 设置按钮为圆角
-            ButtonHelper.SetCornerRadius(removeButton, new CornerRadius(4));
-
-            removeButton.Click += (s, e) => RemovePath(panel);
-
-            panel.Children.Add(nameTextBox);
-            panel.Children.Add(pathTextBox);
-            panel.Children.Add(removeButton);
-
-            InputPanel.Children.Add(panel);  // 确保新路径行添加在列表底部
-
-            _textBoxes.Add((nameTextBox, pathTextBox));  // 将新文本框添加到跟踪列表中
+            var elements = CreatePathPanel(name, text);
+            _pathPanelElements.Add(elements);
+            // 添加到输入面板
+            InputPanel.Children.Add(elements.Panel);  // 确保新路径行添加在列表底部
+            // 将文本框添加到跟踪列表中
+            _textBoxes.Add((elements.NameTextBox, elements.PathTextBox));
         }
 
         /// <summary>
@@ -318,13 +309,15 @@ namespace ProcessMonitorAPP
         /// <summary>
         /// 从界面中移除指定的StackPanel控件 并更新内部数据结构以反映这一变化
         /// </summary>
-        /// <param name="panel"></param>
+        /// <param name="panel">要移除的一行StackPanel控件</param>
         private void RemovePath(StackPanel panel)
         {
             InputPanel.Children.Remove(panel);
             var nameTextBox = (TextBox)panel.Children[0];
             var pathTextBox = (TextBox)panel.Children[1];
             _textBoxes.Remove((nameTextBox, pathTextBox));
+            PathPanelElements DeletePanel = _pathPanelElements.Find(x => x.Panel == panel);
+            _pathPanelElements.Remove(DeletePanel);
 
             // 如果 _textBoxes 为空或文件内容为空，确保至少有一行空的输入框
             if (_textBoxes.Count == 0)
@@ -332,5 +325,52 @@ namespace ProcessMonitorAPP
                 AddPathTextBox(); // 添加一行空的输入框
             }
         }
+
+        public PathPanelElements CreatePathPanel(string name, string text)
+        {
+            var panel = new StackPanel { Orientation = Orientation.Horizontal };
+
+            var nameTextBox = new TextBox { Text = name, Width = 100, Margin = new Thickness(0, 10, 0, 0) };
+            var pathTextBox = new TextBox { Text = text, Width = 300, Margin = new Thickness(10, 10, 0, 0) };
+
+            var removeButton = new Button
+            {
+                Content = "移除".Translate(),
+                Margin = new Thickness(10, 10, 0, 0),
+                Background = AddPath_Button.Background,
+                // Background = (Brush)new BrushConverter().ConvertFrom("#FFADD7F9"),
+                BorderBrush = AddPath_Button.BorderBrush,
+                // BorderBrush = (Brush)new BrushConverter().ConvertFrom("#FF6BB1E9"),
+                BorderThickness = new Thickness(2)
+            };
+            // 设置按钮为圆角
+            ButtonHelper.SetCornerRadius(removeButton, new CornerRadius(4));
+
+            removeButton.Click += (s, e) => RemovePath(panel);
+
+            panel.Children.Add(nameTextBox);
+            panel.Children.Add(pathTextBox);
+            panel.Children.Add(removeButton);
+
+            return new PathPanelElements(panel, nameTextBox, pathTextBox, removeButton);
+        }
+
+
+        public struct PathPanelElements
+        {
+            public StackPanel Panel { get; }
+            public TextBox NameTextBox { get; }
+            public TextBox PathTextBox { get; }
+            public Button RemoveButton { get; }
+
+            public PathPanelElements(StackPanel panel, TextBox nameTextBox, TextBox pathTextBox, Button removeButton)
+            {
+                Panel = panel;
+                NameTextBox = nameTextBox;
+                PathTextBox = pathTextBox;
+                RemoveButton = removeButton;
+            }
+        }
+
     }
 }
