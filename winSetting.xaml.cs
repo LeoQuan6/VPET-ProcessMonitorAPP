@@ -55,7 +55,7 @@ namespace ProcessMonitorAPP
         /// <summary>
         /// 
         /// </summary>
-        private List<PathPanelElements> _pathPanelElements = new List <PathPanelElements>();
+        private List<PathGridElements> _pathGridElements = new List <PathGridElements>();
 
 
         /// <summary>
@@ -200,8 +200,8 @@ namespace ProcessMonitorAPP
         private void SavePathsButton_Click(object sender, RoutedEventArgs e)
         {
             List<string> lines = new List<string>();
-            List<PathPanelElements> deletepathpanel = new List<PathPanelElements>();
-            foreach (PathPanelElements pathpanel in _pathPanelElements)
+            List<PathGridElements> deletepathpanel = new List<PathGridElements>();
+            foreach (PathGridElements pathpanel in _pathGridElements)
             {
                 string name = pathpanel.NameTextBox.Text;
                 string processPath = pathpanel.PathTextBox.Text.Trim(); // 移除路径两端的空白
@@ -233,9 +233,9 @@ namespace ProcessMonitorAPP
                 }
             }
             File.WriteAllLines(txtfilePath, lines);
-            foreach (PathPanelElements pathpanel in deletepathpanel)
+            foreach (PathGridElements pathpanel in deletepathpanel)
             {
-                RemovePath(pathpanel.Panel);
+                RemovePath(pathpanel.Grid);
             }
 
             // 如果 _textBoxes 为空或文件内容为空，确保至少有一行空的输入框
@@ -258,10 +258,15 @@ namespace ProcessMonitorAPP
         /// <param name="isSavedPath">指示该路径是否是已保存路径，默认为 false，此参数目前未使用，可以用于将来的扩展。</param>
         private void AddPathTextBox(string name = "", string text = "", bool isSavedPath = false)
         {
-            var elements = CreatePathPanel(name, text);
-            _pathPanelElements.Add(elements);
+            var elements = CreatePathGrid(name, text);
+            _pathGridElements.Add(elements);
+
+            // 动态添加新行
+            InputGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            // 设置新增控件所在行
+            Grid.SetRow(elements.Grid, InputGrid.RowDefinitions.Count-1);
             // 添加到输入面板
-            InputPanel.Children.Add(elements.Panel);  // 确保新路径行添加在列表底部
+            InputGrid.Children.Add(elements.Grid);  // 确保新路径行添加在列表底部
             // 将文本框添加到跟踪列表中
             _textBoxes.Add((elements.NameTextBox, elements.PathTextBox));
         }
@@ -310,67 +315,85 @@ namespace ProcessMonitorAPP
         /// 从界面中移除指定的StackPanel控件 并更新内部数据结构以反映这一变化
         /// </summary>
         /// <param name="panel">要移除的一行StackPanel控件</param>
-        private void RemovePath(StackPanel panel)
+        private void RemovePath(Grid grid)
         {
-            InputPanel.Children.Remove(panel);
-            var nameTextBox = (TextBox)panel.Children[0];
-            var pathTextBox = (TextBox)panel.Children[1];
+            InputGrid.Children.Remove(grid);
+            var nameTextBox = (TextBox)grid.Children[0];
+            var pathTextBox = (TextBox)grid.Children[1];
             _textBoxes.Remove((nameTextBox, pathTextBox));
-            PathPanelElements DeletePanel = _pathPanelElements.Find(x => x.Panel == panel);
-            _pathPanelElements.Remove(DeletePanel);
+            PathGridElements DeleteGrid = _pathGridElements.Find(x => x.Grid == grid);
+            _pathGridElements.Remove(DeleteGrid);
 
             // 如果 _textBoxes 为空或文件内容为空，确保至少有一行空的输入框
-            if (_textBoxes.Count == 0)
+            if (_textBoxes.Count == 0 && _pathGridElements.Count == 0)
             {
                 AddPathTextBox(); // 添加一行空的输入框
             }
         }
 
-        public PathPanelElements CreatePathPanel(string name, string text)
+        public PathGridElements CreatePathGrid(string name, string text)
         {
-            var panel = new StackPanel { Orientation = Orientation.Horizontal };
+            var grid = new Grid
+            {
+                Margin = new Thickness(0, 10, 0, 0)
+            };
 
-            var nameTextBox = new TextBox { Text = name, Width = 100, Margin = new Thickness(0, 10, 0, 0) };
-            var pathTextBox = new TextBox { Text = text, Width = 300, Margin = new Thickness(10, 10, 0, 0) };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(3, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            var nameTextBox = new TextBox
+            {
+                Text = name,
+                Margin = new Thickness(5, 5, 5, 5),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(nameTextBox, 0);
+
+            var pathTextBox = new TextBox
+            {
+                Text = text,
+                Margin = new Thickness(5, 5, 5, 5),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(pathTextBox, 1);
 
             var removeButton = new Button
             {
                 Content = "移除".Translate(),
-                Margin = new Thickness(10, 10, 0, 0),
                 Background = AddPath_Button.Background,
-                // Background = (Brush)new BrushConverter().ConvertFrom("#FFADD7F9"),
                 BorderBrush = AddPath_Button.BorderBrush,
-                // BorderBrush = (Brush)new BrushConverter().ConvertFrom("#FF6BB1E9"),
-                BorderThickness = new Thickness(2)
+                BorderThickness = new Thickness(2),
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center
             };
-            // 设置按钮为圆角
-            ButtonHelper.SetCornerRadius(removeButton, new CornerRadius(4));
+            ButtonHelper.SetCornerRadius(removeButton, new CornerRadius(5));
+            Grid.SetColumn(removeButton, 2);
 
-            removeButton.Click += (s, e) => RemovePath(panel);
+            removeButton.Click += (s, e) => RemovePath(grid);
 
-            panel.Children.Add(nameTextBox);
-            panel.Children.Add(pathTextBox);
-            panel.Children.Add(removeButton);
+            // 添加控件到 Grid
+            grid.Children.Add(nameTextBox);
+            grid.Children.Add(pathTextBox);
+            grid.Children.Add(removeButton);
 
-            return new PathPanelElements(panel, nameTextBox, pathTextBox, removeButton);
+            return new PathGridElements(grid, nameTextBox, pathTextBox, removeButton);
         }
 
-
-        public struct PathPanelElements
+        public struct PathGridElements
         {
-            public StackPanel Panel { get; }
+            public Grid Grid { get; }
             public TextBox NameTextBox { get; }
             public TextBox PathTextBox { get; }
             public Button RemoveButton { get; }
 
-            public PathPanelElements(StackPanel panel, TextBox nameTextBox, TextBox pathTextBox, Button removeButton)
+            public PathGridElements(Grid grid, TextBox nameTextBox, TextBox pathTextBox, Button removeButton)
             {
-                Panel = panel;
+                Grid = grid;
                 NameTextBox = nameTextBox;
                 PathTextBox = pathTextBox;
                 RemoveButton = removeButton;
             }
         }
-
     }
 }

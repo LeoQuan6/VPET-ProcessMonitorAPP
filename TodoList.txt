@@ -1,6 +1,1 @@
-﻿语言包中的中英文要适配
-修复bug 当文件路径为桌宠自身时, 桌宠永远取消置顶
-	解决方案: 保存路径时, 检查文件名称是否为桌宠主程序文件名
-	name = Path.GetFileNameWithoutExtension(processPath);
-	if (name == "VPet-Simulator.Windows")
-	然后messagebox警示, 并把该行删掉
+﻿
