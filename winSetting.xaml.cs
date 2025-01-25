@@ -18,6 +18,7 @@ using System.Windows.Media;
 using IWshRuntimeLibrary;
 using File = System.IO.File;
 using static ProcessMonitorAPP.winSetting;
+using System.Globalization;
 
 namespace ProcessMonitorAPP
 {
@@ -318,6 +319,7 @@ namespace ProcessMonitorAPP
         private void RemovePath(Grid grid)
         {
             InputGrid.Children.Remove(grid);
+
             var nameTextBox = (TextBox)grid.Children[0];
             var pathTextBox = (TextBox)grid.Children[1];
             _textBoxes.Remove((nameTextBox, pathTextBox));
@@ -331,6 +333,12 @@ namespace ProcessMonitorAPP
             }
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="text"></param>
+        /// <returns></returns>
         public PathGridElements CreatePathGrid(string name, string text)
         {
             var grid = new Grid
@@ -338,15 +346,16 @@ namespace ProcessMonitorAPP
                 Margin = new Thickness(0, 10, 0, 0)
             };
 
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(3, GridUnitType.Star) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100)});
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(300)});
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100)});
 
             var nameTextBox = new TextBox
             {
                 Text = name,
                 Margin = new Thickness(5, 5, 5, 5),
-                VerticalAlignment = VerticalAlignment.Center
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalContentAlignment = HorizontalAlignment.Center,
             };
             Grid.SetColumn(nameTextBox, 0);
 
@@ -354,7 +363,8 @@ namespace ProcessMonitorAPP
             {
                 Text = text,
                 Margin = new Thickness(5, 5, 5, 5),
-                VerticalAlignment = VerticalAlignment.Center
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalContentAlignment = HorizontalAlignment.Center
             };
             Grid.SetColumn(pathTextBox, 1);
 

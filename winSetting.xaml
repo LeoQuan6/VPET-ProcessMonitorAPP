@@ -15,7 +15,7 @@
         <!-- ScrollViewer added around StackPanel for scrolling capability -->
         <ScrollViewer VerticalScrollBarVisibility="Visible" HorizontalScrollBarVisibility="Disabled" 
                       MaxHeight="400" Margin="10">
-            <Grid Margin="10" MinWidth="500" MinHeight="88.64">
+            <Grid Margin="10" MinWidth="500">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <!-- 第一行内容 -->
@@ -42,26 +42,28 @@
                             BorderBrush="{DynamicResource SecondaryDark}" BorderThickness="2" Click="SavePathsButton_Click" Margin="5" Width="100"/>
                 </StackPanel>
                 <!-- 提示内容 -->
-                <Grid HorizontalAlignment="Center" Margin="10" Grid.Row="2" MinWidth="500" >
+                <Grid x:Name="PromptContent" HorizontalAlignment="Center" Margin="10" Grid.Row="2" MinWidth="500">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="1*"/>
-                        <ColumnDefinition Width="3*"/>
-                        <ColumnDefinition Width="1*"/>
+                        <ColumnDefinition Width="100"/>
+                        <ColumnDefinition Width="300"/>
+                        <ColumnDefinition Width="100"/>
                     </Grid.ColumnDefinitions>
 
-                    <TextBlock Grid.Column="0" TextAlignment="Center" VerticalAlignment="Top" TextWrapping="Wrap" 
+                    <TextBlock Grid.Column="0" TextAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" 
                                HorizontalAlignment="Center" Background="{DynamicResource SecondaryLight}" Padding="5" FontSize="12" Margin="0,0,0,0">
                         <Run Text="{ll:Str 自定义程序名称}" />
                         <LineBreak />
                         <Run Text="{ll:Str (可不填)}" />
                     </TextBlock>
 
-                    <TextBlock Text="{ll:Str 路径}" Grid.Column="1" TextAlignment="Center" VerticalAlignment="Top" TextWrapping="Wrap"
-                               HorizontalAlignment="Center"  Background="{DynamicResource SecondaryLight}" Padding="5" FontSize="16" Margin="0,5,0,0"/>
+                    <TextBlock Grid.Column="1" TextAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap"
+                               HorizontalAlignment="Center"  Background="{DynamicResource SecondaryLight}" Padding="5" FontSize="16" Margin="0,0,0,0">
+                        <Run Text="{ll:Str 路径}" />
+                    </TextBlock>
                 </Grid>
 
-                <Grid x:Name="InputGrid" HorizontalAlignment="Center" Grid.Row="3" MinWidth="500" >
-
+                <Grid x:Name="InputGrid" HorizontalAlignment="Center" Grid.Row="3" Width="500">
+                    
                 </Grid>
             </Grid>
         </ScrollViewer>
