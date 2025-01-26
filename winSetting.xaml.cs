@@ -54,7 +54,8 @@ namespace ProcessMonitorAPP
         /// </summary>
         private List<(TextBox nameTextBox, TextBox pathTextBox)> _textBoxes = new List<(TextBox, TextBox)>();
         /// <summary>
-        /// 
+        /// 存储一组Grid控件 每个控件用于输入和显示进程的名称和路径以及"移除"按钮
+        /// 该列表被用于动态管理界面上的进程配置输入字段 允许用户添加、编辑和删除进程监控条目
         /// </summary>
         private List<PathGridElements> _pathGridElements = new List <PathGridElements>();
 
@@ -255,11 +256,11 @@ namespace ProcessMonitorAPP
         /// 动态添加一行路径输入区域到界面上 包括一个名称输入框、一个路径输入框和一个移除按钮
         /// </summary>
         /// <param name="name">路径条目的名称，默认为空字符串，显示在第一个文本框中。</param>
-        /// <param name="text">路径的具体文本，默认为空字符串，显示在第二个文本框中。</param>
+        /// <param name="path">路径的具体文本，默认为空字符串，显示在第二个文本框中。</param>
         /// <param name="isSavedPath">指示该路径是否是已保存路径，默认为 false，此参数目前未使用，可以用于将来的扩展。</param>
-        private void AddPathTextBox(string name = "", string text = "", bool isSavedPath = false)
+        private void AddPathTextBox(string name = "", string path = "", bool isSavedPath = false)
         {
-            var elements = CreatePathGrid(name, text);
+            var elements = CreatePathGrid(name, path);
             _pathGridElements.Add(elements);
 
             // 动态添加新行
@@ -293,16 +294,9 @@ namespace ProcessMonitorAPP
             StopTimerFullScreenMonitor();  // 停止全屏窗口监测定时器
         }
 
-        public void DisableFullScreenMonitor()
-        {
-            isFullScreenMonitorEnabled = false;
-            SaveOtherSettings();
-            vts.MonitorFullScreen();
-            StopTimerFullScreenMonitor();  // 停止全屏窗口监测定时器
-        }
-
         /// <summary>
         /// 保存其他设置
+        /// 要在每次更改其他设置时添加 并增加保存对应设置
         /// </summary>
         private void SaveOtherSettings()
         {
@@ -315,7 +309,7 @@ namespace ProcessMonitorAPP
         /// <summary>
         /// 从界面中移除指定的StackPanel控件 并更新内部数据结构以反映这一变化
         /// </summary>
-        /// <param name="panel">要移除的一行StackPanel控件</param>
+        /// <param name="grid">要移除的一行 Grid 控件</param>
         private void RemovePath(Grid grid)
         {
             InputGrid.Children.Remove(grid);
@@ -334,12 +328,13 @@ namespace ProcessMonitorAPP
         }
 
         /// <summary>
-        /// 
+        /// 创建一个包含名称输入框 路径输入框和移除按钮的 Grid 控件
+        /// 并将其封装为 PathGridElements 结构体返回
         /// </summary>
-        /// <param name="name"></param>
-        /// <param name="text"></param>
-        /// <returns></returns>
-        public PathGridElements CreatePathGrid(string name, string text)
+        /// <param name="name">名称输入框的文本</param>
+        /// <param name="path">路径输入框的文本</param>
+        /// <returns>包含 Grid 和其内部控件的 PathGridElements 结构体</returns>
+        public PathGridElements CreatePathGrid(string name, string path)
         {
             var grid = new Grid
             {
@@ -361,7 +356,7 @@ namespace ProcessMonitorAPP
 
             var pathTextBox = new TextBox
             {
-                Text = text,
+                Text = path,
                 Margin = new Thickness(5, 5, 5, 5),
                 VerticalAlignment = VerticalAlignment.Center,
                 HorizontalContentAlignment = HorizontalAlignment.Center
@@ -390,20 +385,23 @@ namespace ProcessMonitorAPP
             return new PathGridElements(grid, nameTextBox, pathTextBox, removeButton);
         }
 
-        public struct PathGridElements
+        /// <summary>
+        /// 用于封装动态创建的 Grid 及其内部控件的结构体
+        /// 包含 Grid 本行的名称输入框 路径输入框 移除按钮
+        /// </summary>
+        /// <remarks>
+        /// 初始化 PathGridElements 的构造函数
+        /// </remarks>
+        /// <param name="grid">包含所有控件的 Grid</param>
+        /// <param name="nameTextBox">名称输入框</param>
+        /// <param name="pathTextBox">路径输入框</param>
+        /// <param name="removeButton">移除按钮</param>
+        public struct PathGridElements(Grid grid, TextBox nameTextBox, TextBox pathTextBox, Button removeButton)
         {
-            public Grid Grid { get; }
-            public TextBox NameTextBox { get; }
-            public TextBox PathTextBox { get; }
-            public Button RemoveButton { get; }
-
-            public PathGridElements(Grid grid, TextBox nameTextBox, TextBox pathTextBox, Button removeButton)
-            {
-                Grid = grid;
-                NameTextBox = nameTextBox;
-                PathTextBox = pathTextBox;
-                RemoveButton = removeButton;
-            }
+            public Grid Grid { get; } = grid;
+            public TextBox NameTextBox { get; } = nameTextBox;
+            public TextBox PathTextBox { get; } = pathTextBox;
+            public Button RemoveButton { get; } = removeButton;
         }
     }
 }

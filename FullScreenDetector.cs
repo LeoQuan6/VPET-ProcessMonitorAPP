@@ -126,13 +126,10 @@ namespace ProcessMonitorAPP
         /// 检查窗口是否处于全屏状态
         /// </summary>
         /// <param name="hWnd">目标窗口句柄</param>
-        /// <param name="windowRect">窗口区域(含任务栏等无用区域)</param>
         /// <param name="windowFactRect">窗口区域(客户使用区域)</param>
         /// <returns>该窗口为全屏则为true, 不是全屏则为false</returns>
-
-        public static bool IsWindowFullScreen(IntPtr hWnd, out RECT windowRect, out RECT windowFactRect)
+        public static bool IsWindowFullScreen(IntPtr hWnd, out RECT windowFactRect)
         {
-            windowRect = new RECT();
             windowFactRect = new RECT();
 
             StringBuilder className = new StringBuilder(256);
@@ -142,21 +139,18 @@ namespace ProcessMonitorAPP
                 return false;  // 若窗口是windows系统"任务切换"窗口, 不予理睬
             }
 
-            if (GetWindowRect(hWnd, out windowRect) && GetClientRect(hWnd, out windowFactRect))
+            if (GetClientRect(hWnd, out windowFactRect))
             {
                 // 获取物理屏幕分辨率
                 var (screenWidth, screenHeight) = GetForegroundWindowMonitor();
-
-                int windowWidth = windowRect.Right - windowRect.Left;
-                int windowHeight = windowRect.Bottom - windowRect.Top;
 
                 int windowFactWidth = windowFactRect.Right - windowFactRect.Left;
                 int windowFactHeight = windowFactRect.Bottom - windowFactRect.Top;
 
                 const int tolerance = 10;
 
-                if (Math.Abs(windowWidth - screenWidth) <= tolerance &&
-                    Math.Abs(windowHeight - screenHeight) == 0)
+                if (Math.Abs(windowFactWidth - screenWidth) <= tolerance &&
+                    Math.Abs(windowFactHeight - screenHeight) == 0)
                 {
                     return true;
                 }
@@ -186,9 +180,8 @@ namespace ProcessMonitorAPP
                     return true;
                 }
 
-                RECT windowRect;
                 RECT windowFactRect;
-                if (IsWindowFullScreen(hWnd, out windowRect, out windowFactRect))
+                if (IsWindowFullScreen(hWnd, out windowFactRect))
                 {
                     fullScreen = true;
                     targetHWnd = hWnd;  // 保存句柄
