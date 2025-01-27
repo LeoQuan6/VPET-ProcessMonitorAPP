@@ -12,10 +12,13 @@
     </Window.Resources>
 
     <Grid Background="{DynamicResource PrimaryLighter}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
         <!-- ScrollViewer added around StackPanel for scrolling capability -->
         <ScrollViewer VerticalScrollBarVisibility="Visible" HorizontalScrollBarVisibility="Disabled" 
-                      MaxHeight="400" Margin="10">
-            <Grid Margin="10" MinWidth="500">
+                      Margin="10">
+            <Grid Margin="10" MinWidth="520" VerticalAlignment="Stretch">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <!-- 第一行内容 -->
@@ -62,7 +65,8 @@
                     </TextBlock>
                 </Grid>
 
-                <Grid x:Name="InputGrid" HorizontalAlignment="Center" Grid.Row="3" Width="500">
+                <Grid x:Name="InputGrid" HorizontalAlignment="Center" Grid.Row="3"
+                      Width="500" VerticalAlignment="Stretch">
                     
                 </Grid>
             </Grid>
