@@ -172,10 +172,8 @@ namespace ProcessMonitorAPP
                 StringBuilder title = new StringBuilder(256);
                 GetWindowText(hWnd, title, title.Capacity);
                 IntPtr foregroundHwnd = GetForegroundWindow();
-
-                if (string.IsNullOrWhiteSpace(title.ToString())  // 无实际标题名称的窗口一般为无用窗口, 不监测
-                    || hWnd != foregroundHwnd  // 后台窗口不监测
-                    )
+                // 无实际标题名称的窗口不一定为无用窗口, 还需监测(如"QQ音乐"中视频播放界面)
+                if (hWnd != foregroundHwnd)  // 后台窗口不监测
                 {
                     return true;
                 }
