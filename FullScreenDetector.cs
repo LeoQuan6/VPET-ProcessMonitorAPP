@@ -1,5 +1,6 @@
 ﻿using LinePutScript.Localization.WPF;
 using System;
+using System.Diagnostics;
 using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -19,22 +20,6 @@ namespace ProcessMonitorAPP
         /// <returns>窗口标题的字符数（不包括终止符）</returns>
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]
         public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
-
-        /// <summary>
-        /// 枚举所有顶级窗口
-        /// </summary>
-        /// <param name="enumProc">回调方法，用于处理每个窗口</param>
-        /// <param name="lParam">传递给回调方法的参数</param>
-        /// <returns>如果枚举成功并且未中止，则返回 true</returns>
-        [DllImport("user32.dll")]
-        public static extern bool EnumWindows(EnumWindowsProc enumProc, IntPtr lParam);
-        /// <summary>
-        /// 回调方法的委托定义，用于 EnumWindows
-        /// </summary>
-        /// <param name="hWnd">当前枚举到的窗口句柄</param>
-        /// <param name="lParam">传递给回调的额外参数</param>
-        /// <returns>如果返回 true，继续枚举；否则停止枚举</returns>
-        public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
 
         /// <summary>
         /// 获取前台窗口句柄
@@ -103,6 +88,24 @@ namespace ProcessMonitorAPP
         [DllImport("user32.dll", SetLastError = true)]
         public static extern bool GetClientRect(IntPtr hWnd, out RECT lpRect);
 
+        /// <summary>
+        /// 获取与指定窗口相关联的线程和进程 ID
+        /// </summary>
+        /// <param name="hWnd">窗口句柄</param>
+        /// <param name="lpdwProcessId">接收窗口相关联的进程 ID</param>
+        /// <returns>返回窗口所在的线程 ID</returns>
+        [DllImport("user32.dll")]
+        public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out int lpdwProcessId);
+
+        /// <summary>
+        /// 获取窗口的位置、大小和显示状态
+        /// </summary>
+        /// <param name="hWnd">窗口句柄</param>
+        /// <param name="lpwndpl">接收窗口状态和位置的 `WINDOWPLACEMENT` 结构体</param>
+        /// <returns>如果成功，返回非零值；如果失败，返回零</returns>
+        [DllImport("user32.dll")]
+        public static extern int GetWindowPlacement(IntPtr hWnd, ref WINDOWPLACEMENT lpwndpl);
+
         // 定义常量
         public static readonly IntPtr HWND_TOPMOST = new IntPtr(-1);
         public static readonly IntPtr HWND_NOTOPMOST = new IntPtr(-2);
@@ -110,97 +113,64 @@ namespace ProcessMonitorAPP
         public const uint SWP_NOSIZE = 0x0001;
         public const uint SWP_SHOWWINDOW = 0x0040;
 
-        /// <summary>
-        /// 定义矩形结构体
-        /// </summary>
-        [StructLayout(LayoutKind.Sequential)]
-        public struct RECT
-        {
-            public int Left;
-            public int Top;
-            public int Right;
-            public int Bottom;
-        }
 
         /// <summary>
-        /// 检查窗口是否处于全屏状态
+        /// 判断窗口是否全屏
         /// </summary>
-        /// <param name="hWnd">目标窗口句柄</param>
-        /// <param name="windowFactRect">窗口区域(客户使用区域)</param>
-        /// <returns>该窗口为全屏则为true, 不是全屏则为false</returns>
-        public static bool IsWindowFullScreen(IntPtr hWnd, out RECT windowFactRect)
+        /// <param name="windowInfo">窗口信息</param>
+        /// <returns>该窗口为全屏 返回true
+        /// <para>该窗口不是全屏 返回false</para>
+        /// </returns>
+        /// <remarks>包含对Steam大屏模式的特殊判断</remarks>
+        public static bool IsWindowFullScreen(WindowInfo windowInfo)
         {
-            windowFactRect = new RECT();
+            const int tolerance = 10;
 
-            StringBuilder className = new StringBuilder(256);
-            GetClassName(hWnd, className, className.Capacity);
-            if (className.ToString() == "XamlExplorerHostIslandWindow")
+            if (Math.Abs(windowInfo.WindowFactHeightAndWidth.Width - windowInfo.ScreenHeightAndWidth.Width) <= tolerance &&
+                Math.Abs(windowInfo.WindowFactHeightAndWidth.Height - windowInfo.ScreenHeightAndWidth.Height) == 0)
             {
-                return false;  // 若窗口是windows系统"任务切换"窗口, 不予理睬
+                return true;
             }
-
-            if (GetClientRect(hWnd, out windowFactRect))
+            else if (IsSteamBigPictureMode(windowInfo))
             {
-                // 获取物理屏幕分辨率
-                var (screenWidth, screenHeight) = GetForegroundWindowMonitor();
-
-                int windowFactWidth = windowFactRect.Right - windowFactRect.Left;
-                int windowFactHeight = windowFactRect.Bottom - windowFactRect.Top;
-
-                const int tolerance = 10;
-
-                if (Math.Abs(windowFactWidth - screenWidth) <= tolerance &&
-                    Math.Abs(windowFactHeight - screenHeight) == 0)
-                {
-                    return true;
-                }
+                return true;
             }
             return false;
         }
 
         /// <summary>
-        /// 获取所有全屏窗口计数
+        /// 判断前台窗口是否为全屏
+        /// <para>并异步控制前台窗口覆盖桌宠的操作</para>
         /// </summary>
-        /// <returns></returns> 全屏窗口的数量int
+        /// <returns>前台窗口是全屏 返回true
+        /// <para>前台窗口不是全屏 返回false</para>
+        /// </returns>
         public static async Task<bool> GetFullScreenWindowCount()
         {
             bool fullScreen = false;
-            IntPtr targetHWnd = IntPtr.Zero; // 用于保存检测到的全屏窗口句柄
-
-            EnumWindows((hWnd, lParam) =>
+            IntPtr foreground_hWnd = GetForegroundWindow();
+            WindowInfo windowinfo = GetWindowInfo(foreground_hWnd);
+            if (
+                IsWindowFullScreen(windowinfo) &&
+                !IsSpecialProgramWindow(windowinfo) &&
+                IsWinEtoExplorer(windowinfo)
+                )
             {
-                StringBuilder title = new StringBuilder(256);
-                GetWindowText(hWnd, title, title.Capacity);
-                IntPtr foregroundHwnd = GetForegroundWindow();
-                // 无实际标题名称的窗口不一定为无用窗口, 还需监测(如"QQ音乐"中视频播放界面)
-                if (hWnd != foregroundHwnd)  // 后台窗口不监测
-                {
-                    return true;
-                }
-
-                RECT windowFactRect;
-                if (IsWindowFullScreen(hWnd, out windowFactRect))
-                {
-                    fullScreen = true;
-                    targetHWnd = hWnd;  // 保存句柄
-                }
-                return false;
-
-            }, IntPtr.Zero);
+                fullScreen = true;
+            }
 
             // 返回之前进行异步延迟操作
-            await Task.Delay(500); // 延迟1秒
+            await Task.Delay(500); // 延迟0.5秒
 
-            if (fullScreen && targetHWnd != IntPtr.Zero)
+            if (fullScreen && foreground_hWnd != IntPtr.Zero)
             {
                 // 先置顶全屏窗口
-                SetWindowPos(targetHWnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+                SetWindowPos(foreground_hWnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
             }
-            // await Task.Delay(200); // 延迟0.2秒
-            if (fullScreen && targetHWnd != IntPtr.Zero)
+            if (fullScreen && foreground_hWnd != IntPtr.Zero)
             {
                 // 再取消全屏窗口的置顶, 以达到覆盖桌宠但不永远覆盖
-                SetWindowPos(targetHWnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+                SetWindowPos(foreground_hWnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
             }
 
             return fullScreen;
@@ -209,34 +179,203 @@ namespace ProcessMonitorAPP
         /// <summary>
         /// 获取当前窗口所在屏幕的屏幕大小
         /// </summary>
-        /// <returns> 正常返回(屏幕宽度, 屏幕高度)  若并未找到屏幕大小, 则返回(0,0)</returns>
-        public static (int monitorWidth, int monitorHeight) GetForegroundWindowMonitor()
+        /// <param name="windowRect">窗口位置, 用于定位窗口坐标</param>
+        /// <param name="WindowPoint">对外提供窗口左上角坐标位置</param>
+        /// <returns>屏幕的高度与宽度, 若未找到, 则返回0值的宽高</returns>
+        public static HeightAndWidth GetForegroundWindowMonitor(RECT windowRect, out POINT WindowPoint)
         {
-            IntPtr hwnd = GetForegroundWindow();
-            RECT windowRect;
-            if (GetWindowRect(hwnd, out windowRect))
-            {
-                // 获取窗口左上角的坐标
-                POINT windowPoint = new POINT { X = windowRect.Left, Y = windowRect.Top };
-                // 使用 MonitorFromPoint 来获取显示器句柄
-                IntPtr hMonitor = MonitorFromPoint(windowPoint, 2);
-                if (hMonitor != IntPtr.Zero)
-                {
-                    // 获取显示器信息
-                    MONITORINFO monitorInfo = new MONITORINFO();
-                    monitorInfo.cbSize = Marshal.SizeOf(typeof(MONITORINFO));
+            HeightAndWidth monitorhw = new();
 
-                    if (GetMonitorInfo(hMonitor, ref monitorInfo))
-                    {
-                        var monitorWidth = monitorInfo.rcMonitor.Right - monitorInfo.rcMonitor.Left;
-                        var monitorHeight = monitorInfo.rcMonitor.Bottom - monitorInfo.rcMonitor.Top;
-                        return (monitorWidth, monitorHeight);
-                    }
+            // 获取窗口左上角的坐标
+            WindowPoint = new POINT { X = windowRect.Left, Y = windowRect.Top };
+            // 使用 MonitorFromPoint 来获取显示器句柄
+            IntPtr hMonitor = MonitorFromPoint(WindowPoint, 2);
+            if (hMonitor != IntPtr.Zero)
+            {
+                // 获取显示器信息
+                MONITORINFO monitorInfo = new();
+                monitorInfo.cbSize = Marshal.SizeOf(typeof(MONITORINFO));
+
+                if (GetMonitorInfo(hMonitor, ref monitorInfo))
+                {
+                    monitorhw.Width = monitorInfo.rcMonitor.Right - monitorInfo.rcMonitor.Left;
+                    monitorhw.Height = monitorInfo.rcMonitor.Bottom - monitorInfo.rcMonitor.Top;
+                    return monitorhw;
                 }
-                //或许需要通过真正的多显示器来进行测试
             }
-            MessageBox.Show("无法获取到屏幕的物理分辨率, 请联系'取消置顶'的mod制作者 夜柠, 来反馈此bug\r\n请通过在steam中强制停止或通过windows系统托盘中的桌宠小标来关闭桌宠".Translate());
-            return (0, 0);
+            // 如果是单个显示器的情况下, 最大化但非全屏窗口的左上角坐标值会是负数, 进而导致返回(0, 0), 或许需要通过真正的多显示器来进行测试
+            return monitorhw;
+        }
+
+        /// <summary>
+        /// 判断是否为暂时无法处理的特殊程序的特殊窗口
+        /// </summary>
+        /// <param name="windowInfo">窗口信息</param>
+        /// <returns>是特殊程序 返回true
+        /// <para>不是特殊程序 返回false</para>
+        /// </returns>
+        /// <remarks>包含 Alt+Tab 呼出的任务切换窗口 和 火绒的"安全分析工具"</remarks>
+        private static bool IsSpecialProgramWindow(WindowInfo windowInfo)
+        {
+            if (windowInfo.ClassName == "XamlExplorerHostIslandWindow" && windowInfo.ProcessName == "explorer")
+            {
+                return true; // 当前窗口是任务切换窗口, 不予理睬
+            }
+            else if (windowInfo.ClassName == "HRSWORD" && windowInfo.ProcessName == "SecAnalysis")
+            {
+                return true; // 当前窗口是火绒的"安全分析工具", 即使处于最大化, 也会被误识别为全屏, 以此方式暂时解决问题
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// 判断是否为普通资源管理器窗口
+        /// </summary>
+        /// <param name="windowInfo">窗口信息</param>
+        /// <returns>是资源管理器或其他程序的窗口 返回true
+        /// <para>独显直连情况下的桌面虚拟窗口 返回false</para>
+        /// </returns>
+        /// <remarks>如果是, 则正常识别是否全屏
+        /// <para>如果不是, 则判断为独显直连情况下的桌面虚拟窗口, 不为全屏</para>
+        /// <para>但不影响其他进程的窗口判断</para>
+        /// </remarks>
+        private static bool IsWinEtoExplorer(WindowInfo windowInfo)
+        {
+            if (windowInfo.ProcessName == "explorer")
+            {
+                if (windowInfo.ClassName == "CabinetWClass")
+                {
+                    return true; // 当前窗口是Win + E呼出的资源管理器窗口, 该窗口可以全屏, 应当正常识别
+                }
+                else if (windowInfo.WindowState == 1)
+                {
+                    return false;  // 该窗口应该是独显直连情况下的桌面虚拟窗口, 不应被识别为全屏
+                }
+            }
+            return true;  // 应该是其他进程的窗口, 为了不影响正常判断, 默认返回true
+        }
+
+        /// <summary>
+        /// 判断是否为 Steam 大屏模式
+        /// </summary>
+        /// <param name="windowInfo">窗口信息</param>
+        /// <returns>大屏模式则必定全屏 返回true
+        /// <para>如果不是Steam大屏模式或其他程序 返回false</para>
+        private static bool IsSteamBigPictureMode(WindowInfo windowInfo)
+        {
+            if (
+                windowInfo.ClassName == "SDL_app" &&
+                windowInfo.ProcessName == "steamwebhelper" &&
+                windowInfo.WindowState == 1 &&
+                Math.Abs(windowInfo.WindowFactHeightAndWidth.Width - windowInfo.ScreenHeightAndWidth.Width) == 0 &&
+                Math.Abs(windowInfo.WindowFactHeightAndWidth.Height - windowInfo.ScreenHeightAndWidth.Height) <= 2 &&
+                // 其实以目前我的测试来看高度应该只比正常显示器大小小1像素, 但可惜我没有其他比例的屏幕以及4k的屏幕, 因此放宽到2像素的误差
+                (windowInfo.WindowFactHeightAndWidth.Height < windowInfo.ScreenHeightAndWidth.Height)
+                // 如此多的条件是为了保证是大屏幕模式而不是非最大化状态下的普通窗口
+                )
+            {
+                return true; // 当前窗口是steam大屏幕模式, 由于steam自身原因造成大屏模式的窗口大小会比全屏小, 以此方式暂时解决问题
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// 获取窗口常用信息
+        /// </summary>
+        /// <param name="hWnd">窗口句柄</param>
+        /// <returns>WindowInfo 结构的窗口信息</returns>
+        public static WindowInfo GetWindowInfo(IntPtr hWnd)
+        {
+            WindowInfo windowInfo = new();
+
+            windowInfo.hWnd = hWnd;
+
+            GetWindowRect(hWnd, out RECT windowRect);
+            windowInfo.WindowRect = windowRect;
+            windowInfo.WindowRectHeightAndWidth.Width = windowRect.Right - windowRect.Left;
+            windowInfo.WindowRectHeightAndWidth.Height = windowRect.Bottom - windowRect.Top;
+
+            GetClientRect(hWnd, out RECT WindowFactRect);
+            windowInfo.WindowFactRect = WindowFactRect;
+            windowInfo.WindowFactHeightAndWidth.Width = WindowFactRect.Right - WindowFactRect.Left;
+            windowInfo.WindowFactHeightAndWidth.Height = WindowFactRect.Bottom - WindowFactRect.Top;
+
+            windowInfo.ScreenHeightAndWidth = GetForegroundWindowMonitor(windowRect, out windowInfo.WindowPoint);
+
+            windowInfo.ClassName = GetWindowClassName(hWnd);
+
+            windowInfo.ProcessName = GetWindowProcessInfo(hWnd);
+
+            windowInfo.WindowState = GetWindowState(hWnd);
+
+            windowInfo.Title = GetWindowTitle(hWnd);
+
+            return windowInfo;
+        }
+
+        /// <summary>
+        /// 获取窗口所属进程的辅助方法
+        /// </summary>
+        /// <param name="hWnd">窗口句柄</param>
+        /// <returns>窗口进程名称</returns>
+        private static string GetWindowProcessInfo(IntPtr hWnd)
+        {
+            int processId;
+            GetWindowThreadProcessId(hWnd, out processId);
+            Process process = Process.GetProcessById(processId);
+            return process.ProcessName;
+        }
+
+        /// <summary>
+        /// 获取窗口类名的辅助方法
+        /// </summary>
+        /// <param name="hWnd">窗口句柄</param>
+        /// <returns>窗口类名 string</returns>
+        private static string GetWindowClassName(IntPtr hWnd)
+        {
+            StringBuilder className = new StringBuilder(256);
+            _ = GetClassName(hWnd, className, className.Capacity);
+            return className.ToString();
+        }
+
+        /// <summary>
+        /// 获取窗口标题的辅助方法
+        /// </summary>
+        /// <param name="hWnd">窗口句柄</param>
+        /// <returns>窗口标题 string</returns>
+        private static string GetWindowTitle(IntPtr hWnd)
+        {
+            StringBuilder title = new StringBuilder(256);
+            _ = GetWindowText(hWnd, title, title.Capacity);
+            return title.ToString();
+        }
+
+        /// <summary>
+        /// 获取窗口显示状态的辅助方法
+        /// </summary>
+        /// <param name="hWnd">窗口句柄</param>
+        /// <returns>
+        /// 返回1 则为正常显示
+        /// <para>返回2 则为最小化</para>
+        /// 返回3 则为最大化
+        /// <para>返回0 则为其他异常情况</para>
+        /// </returns>
+        private static int GetWindowState(IntPtr hWnd)
+        {
+            WINDOWPLACEMENT placement = new();
+            _ = GetWindowPlacement(hWnd, ref placement);
+            switch (placement.showCmd)
+            {
+                case 1:
+                    return 1;  // "正常显示"
+                case 3:
+                    return 3;  // "最大化"
+                case 2:
+                    return 2;  // "最小化"
+                default:
+                    return 0; //  "其他异常可能性"
+            }
         }
 
         /// <summary>
@@ -259,6 +398,105 @@ namespace ProcessMonitorAPP
             public RECT rcMonitor;
             public RECT rcWork;
             public uint dwFlags;
+        }
+
+        /// <summary>
+        /// 通用窗口或屏幕 矩形结构体
+        /// </summary>
+        [StructLayout(LayoutKind.Sequential)]
+        public struct RECT
+        {
+            public int Left;
+            public int Top;
+            public int Right;
+            public int Bottom;
+        }
+
+        /// <summary>
+        /// 表示一个窗口的位置信息和显示状态，包括最小化、最大化、常规状态下的窗口位置、尺寸以及显示方式。
+        /// </summary>
+        /// <remarks>
+        /// 该结构体通常用于获取或设置窗口的位置、大小、状态以及窗口的显示命令（例如最大化、最小化等）。它是 Windows API 中用于窗口管理的结构体。
+        /// </remarks>
+        [StructLayout(LayoutKind.Sequential)]
+        public struct WINDOWPLACEMENT
+        {
+            public int length;
+            public int flags;
+            public int showCmd;
+            public POINT ptMinPosition;
+            public POINT ptMaxPosition;
+            public RECT rcNormalPosition;
+        }
+
+        /// <summary>
+        /// 用于定义一个矩形(窗口或显示器)的宽高
+        /// </summary>
+        public struct HeightAndWidth
+        {
+            public int Height;
+            public int Width;
+        }
+
+        /// <summary>
+        /// 要用到的关于窗口的全部信息
+        /// </summary>
+        public struct WindowInfo
+        {
+            /// <summary>
+            /// 窗口句柄
+            /// </summary>
+            public IntPtr hWnd;
+
+            /// <summary>
+            /// 窗口实际宽高
+            /// </summary>
+            public HeightAndWidth WindowFactHeightAndWidth;
+
+            /// <summary>
+            /// 窗口工作区域信息
+            /// </summary>
+            public RECT WindowFactRect;
+
+            /// <summary>
+            /// 窗口完整宽高
+            /// </summary>
+            public HeightAndWidth WindowRectHeightAndWidth;
+
+            /// <summary>
+            /// 窗口完整区域信息
+            /// </summary>
+            public RECT WindowRect;
+
+            /// <summary>
+            /// 窗口左上角坐标
+            /// </summary>
+            public POINT WindowPoint;
+
+            /// <summary>
+            /// 窗口所在屏幕的分辨率
+            /// </summary>
+            public HeightAndWidth ScreenHeightAndWidth;
+
+            /// <summary>
+            /// 窗口标题
+            /// </summary>
+            public string Title;
+
+            /// <summary>
+            /// 窗口类名
+            /// </summary>
+            public string ClassName;
+
+            /// <summary>
+            /// 窗口对应进程名称
+            /// </summary>
+            public string ProcessName;
+
+            /// <summary>
+            /// 窗口显示状态
+            /// </summary>
+            public int WindowState;
         }
     }
 }

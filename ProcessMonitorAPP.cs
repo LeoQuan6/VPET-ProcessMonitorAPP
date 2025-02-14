@@ -24,7 +24,7 @@ namespace ProcessMonitorAPP
 {
     public class ProcessMonitor : MainPlugin
     {
-        public Setting Set;
+        public Setting? Set;
         public override string PluginName => "ProcessMonitorAPP";
         public ProcessMonitor(IMainWindow mainwin) : base(mainwin)
         {
@@ -61,15 +61,15 @@ namespace ProcessMonitorAPP
         /// <summary>
         /// 定义全屏窗口监测定时器
         /// </summary>
-        private static DispatcherTimer _FullScreenMonitorTimer;
+        private static DispatcherTimer? _FullScreenMonitorTimer;
         /// <summary>
         /// 定义程序监控定时器
         /// </summary>
-        private DispatcherTimer _ProcessMonitorTimer;
+        private DispatcherTimer? _ProcessMonitorTimer;
         /// <summary>
-        /// 记录此时全屏窗口数量
-        /// 如果EnableFullScreenMonitor为false时, 该数值应保持为0
+        /// 记录前台窗口是否为全屏
         /// </summary>
+        /// <remarks>如果EnableFullScreenMonitor为false时, 该值应保持为false</remarks>
         public bool HasFullScreen { get; set; }
         /// <summary>
         /// 当桌宠开启，加载mod的时候会调用这个函数
@@ -112,7 +112,7 @@ namespace ProcessMonitorAPP
             LoadAndMonitorProcesses();
             MonitorFullScreen();
             _ProcessMonitorTimer = new DispatcherTimer();
-            _ProcessMonitorTimer.Interval = TimeSpan.FromSeconds(1);  // 每秒检查一次
+            _ProcessMonitorTimer.Interval = TimeSpan.FromSeconds(0.2);  // 每秒检查一次
             _ProcessMonitorTimer.Tick += ShouldToggleTopMost; // 每秒调用检查方法
             _ProcessMonitorTimer.Start();  // 启动程序监控定时器
         }
@@ -127,7 +127,7 @@ namespace ProcessMonitorAPP
         /// <summary>
         /// 生成winSetting对话框资源
         /// </summary>
-        public winSetting winSetting;
+        public winSetting? winSetting;
         /// <summary>
         /// 生成/显示winSetting对话框
         /// </summary>
@@ -205,7 +205,7 @@ namespace ProcessMonitorAPP
                 if (_FullScreenMonitorTimer == null)
                 {
                     _FullScreenMonitorTimer = new DispatcherTimer();
-                    _FullScreenMonitorTimer.Interval = TimeSpan.FromSeconds(1);  // 每秒检查一次
+                    _FullScreenMonitorTimer.Interval = TimeSpan.FromSeconds(0.2);  // 每秒检查一次
                     _FullScreenMonitorTimer.Tick += CheckFullScreenStatus; // 每秒调用检查方法
                 }
                 HasFullScreen = false;
@@ -492,7 +492,7 @@ namespace ProcessMonitorAPP
                 {
                     task.Wait();
                 }
-                catch (AggregateException ex)
+                catch (AggregateException)
                 {
                     // 忽略任务取消引发的异常
                 }
@@ -508,7 +508,7 @@ namespace ProcessMonitorAPP
         /// <summary>
         /// 判断是否需要置顶窗口
         /// </summary>
-        private async void ShouldToggleTopMost(object sender, EventArgs e)
+        private async void ShouldToggleTopMost(object? sender, EventArgs e)
         {
             if ((_runningProcesses.Count(p => p.Value) > 0) || HasFullScreen)
             {
@@ -539,7 +539,7 @@ namespace ProcessMonitorAPP
         /// 并更新字典中对应进程的运行状态
         /// </summary>
         /// <param name="processPath">启动的进程的完整路径 用于更新字典中对应进程的运行状态</param>
-        protected virtual async void OnProcessStarted(string processPath)
+        protected virtual void OnProcessStarted(string processPath)
         {
             var mw = MW as MainWindow;
             if (mw != null)
@@ -555,7 +555,7 @@ namespace ProcessMonitorAPP
         /// 并更新字典中对应进程的运行状态
         /// </summary>
         /// <param name="processPath">关闭的进程的完整路径 用于更新字典中对应进程的运行状态</param>
-        protected virtual async void OnProcessStopped(string processPath)
+        protected virtual void OnProcessStopped(string processPath)
         {
             var mw = MW as MainWindow;
             if (mw != null)
@@ -608,7 +608,7 @@ namespace ProcessMonitorAPP
 
             foreach (Assembly assembly in loadedAssemblies)
             {
-                string assemblyName = assembly.GetName().Name;
+                string? assemblyName = assembly.GetName().Name;
 
                 if (assemblyName == dll)
                 {

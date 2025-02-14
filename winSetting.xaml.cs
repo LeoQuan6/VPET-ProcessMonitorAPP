@@ -124,7 +124,7 @@ namespace ProcessMonitorAPP
             string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
             foreach (string file in files)
             {
-                string path = null;
+                string? path = null;
                 if (Path.GetExtension(file).ToLower() == ".lnk")
                 {
                     path = ResolveShortcut(file);
@@ -144,7 +144,7 @@ namespace ProcessMonitorAPP
         /// </summary>
         /// <param name="shortcutPath">快捷方式文件的完整路径</param>
         /// <returns>快捷方式指向的文件的完整路径; 如果快捷方式无效或无法解析 则为 null</returns>
-        private string ResolveShortcut(string shortcutPath)
+        private string? ResolveShortcut(string shortcutPath)
         {
             try
             {
