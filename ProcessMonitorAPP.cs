@@ -45,15 +45,15 @@ namespace ProcessMonitorAPP
         /// <summary>
         /// 存储mod路径
         /// </summary>
-        public string modPath;
+        public string modPath { get; set; }
         /// <summary>
         /// 存储process_paths.txt的路径
         /// </summary>
-        public string txtfilePath;
+        public string txtfilePath { get; set; }
         /// <summary>
         /// 存储monitor_set.txt的路径
         ///</summary>
-        public string txtsetPath;
+        public string txtsetPath { get; set; }
         /// <summary>
         /// 保存是否启用全屏监控的状态
         /// </summary>
@@ -166,7 +166,7 @@ namespace ProcessMonitorAPP
             _cancellationTokenSource.Cancel(); // 取消所有监控任务线程
             _runningProcesses.Clear(); // 清除字典中的所有条目
             _cancellationTokenSource = new CancellationTokenSource(); // 重新初始化监控任务线程
-            List<string> missingFiles = new List<string>(); // 如果读取文件中有失效的路径, 记录在此处
+            
 
             // 读取路径并初始化监控
             var lines = File.ReadAllLines(txtfilePath);
@@ -181,20 +181,12 @@ namespace ProcessMonitorAPP
 
                 if (!File.Exists(parts[1])) // 检查文件是否存在
                 {
-                    missingFiles.Add(parts[1]);
-                    continue; // 文件不存在则记录下来，并处理下一行
+                    continue; // 文件不存在则不进行监控, 等待用户打开设置窗口时才进行提示，并处理下一行
                 }
 
                 // 文件存在且格式正确时，添加到监控列表
                 _runningProcesses[parts[1]] = false;
                 StartMonitoring(parts[1], false);
-            }
-
-            // 提示已失效路径
-            if (missingFiles.Count > 0)
-            {
-                string missingMessage = "以下程序不存在:\n".Translate() + string.Join("\n", missingFiles);
-                MessageBox.Show(missingMessage);
             }
         }
 
@@ -333,22 +325,12 @@ namespace ProcessMonitorAPP
             _cancellationTokenSource = new CancellationTokenSource();  // 重新初始化取消标记源
             
             // 根据字典中的键值对, 重新启动监控, 并传入对应值
-            List<string> missingFiles = new List<string>(); // 如果读取文件中有失效的路径, 记录在此处
             foreach (var (processpath, wasRunning) in _runningProcesses)
             {
                 if (File.Exists(processpath))
                 {
                     StartMonitoring(processpath, wasRunning);
                 }
-                else
-                {
-                    missingFiles.Add(processpath);
-                }
-            }
-            if (missingFiles.Count > 0)
-            {
-                string missingMessage = "以下程序不存在:\n".Translate() + string.Join("\n", missingFiles);
-                MessageBox.Show(missingMessage);
             }
         }
 

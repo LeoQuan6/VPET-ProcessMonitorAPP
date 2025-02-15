@@ -5,7 +5,9 @@
         xmlns:ll="clr-namespace:LinePutScript.Localization.WPF;assembly=LinePutScript.Localization.WPF"
         Title="{ll:Str 取消置顶}" Height="450" Width="800"
         FontSize="16" ResizeMode="CanResize" WindowState="Normal"
-        Background="{DynamicResource PrimaryLighter}" HorizontalAlignment="Center" VerticalAlignment="Center">
+        Background="{DynamicResource PrimaryLighter}" HorizontalAlignment="Center" VerticalAlignment="Center"
+        Loaded="Window_Loaded"
+        >
 
     <Window.Resources>
         <ResourceDictionary Source="/VPet-Simulator.Windows.Interface;component/ResourceStyle.xaml" />

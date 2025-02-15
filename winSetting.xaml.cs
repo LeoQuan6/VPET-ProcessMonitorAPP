@@ -19,6 +19,7 @@ using IWshRuntimeLibrary;
 using File = System.IO.File;
 using static ProcessMonitorAPP.winSetting;
 using System.Globalization;
+using System.Xml.Linq;
 
 namespace ProcessMonitorAPP
 {
@@ -58,6 +59,10 @@ namespace ProcessMonitorAPP
         /// 该列表被用于动态管理界面上的进程配置输入字段 允许用户添加、编辑和删除进程监控条目
         /// </summary>
         private List<PathGridElements> _pathGridElements = new List <PathGridElements>();
+        /// <summary>
+        /// 添加字符串列表来收集失效路径列表
+        /// </summary>
+        private List<string> missingFiles = [];
 
 
         /// <summary>
@@ -172,12 +177,18 @@ namespace ProcessMonitorAPP
             if (File.Exists(txtfilePath))
             {
                 var lines = File.ReadAllLines(txtfilePath);
+                missingFiles.Clear();
                 foreach (var line in lines)
                 {
                     var parts = line.Split(new[] { '|' }, 2);
                     if (parts.Length == 2)
                     {
                         AddPathTextBox(parts[0], parts[1], true);
+                    }
+                    
+                    if (!File.Exists(parts[1]))
+                    {
+                        missingFiles.Add($"{parts[1]}");
                     }
                 }
             }
@@ -226,12 +237,18 @@ namespace ProcessMonitorAPP
                         pathpanel.NameTextBox.Text = name;  // 自动填写名称到界面上
                         pathpanel.PathTextBox.Text = processPath;  // 自动填写整理后的路径到界面上
                     }
-
+                    
+                    missingFiles.Clear();
                     // 只有当文件存在时才添加到保存列表
                     if (File.Exists(processPath))
                     {
                         lines.Add($"{name}|{processPath}");
                     }
+                    else
+                    {
+                        missingFiles.Add($"{processPath}");
+                    }
+
                 }
             }
             File.WriteAllLines(txtfilePath, lines);
@@ -246,8 +263,16 @@ namespace ProcessMonitorAPP
                 AddPathTextBox(); // 添加一行空的输入框
             }
 
-            MessageBox.Show("路径保存成功!".Translate(), "Information", MessageBoxButton.OK, MessageBoxImage.Information);
-
+            // 提示已失效路径
+            if (missingFiles.Count > 0)
+            {
+                string missingMessage = "以下程序不存在:\r\n".Translate() + string.Join("\n", missingFiles) + "\r\n其余路径保存成功!".Translate();
+                MessageBox.Show(missingMessage, "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            else
+            {
+                MessageBox.Show("路径保存成功!".Translate(), "Information", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
             // 重新加载并启动监控程序
             vts.ReloadAndMonitorProcesses();
         }
@@ -324,6 +349,26 @@ namespace ProcessMonitorAPP
             if (_textBoxes.Count == 0 && _pathGridElements.Count == 0)
             {
                 AddPathTextBox(); // 添加一行空的输入框
+            }
+        }
+
+        /// <summary>
+        /// 窗口加载完成后要执行的操作
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            // 提示已失效路径
+            if (missingFiles.Count > 0)
+            {
+                string missingMessage = "以下程序不存在:\n".Translate() + string.Join("\n", missingFiles);
+                // 延迟执行 MessageBox，确保它在窗口加载完成后显示
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    MessageBox.Show(missingMessage, "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                
             }
         }
 
