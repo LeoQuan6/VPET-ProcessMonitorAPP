@@ -214,6 +214,7 @@ namespace ProcessMonitorAPP
         {
             List<string> lines = new List<string>();
             List<PathGridElements> deletepathpanel = new List<PathGridElements>();
+            missingFiles.Clear();
             foreach (PathGridElements pathpanel in _pathGridElements)
             {
                 string name = pathpanel.NameTextBox.Text;
@@ -238,7 +239,6 @@ namespace ProcessMonitorAPP
                         pathpanel.PathTextBox.Text = processPath;  // 自动填写整理后的路径到界面上
                     }
                     
-                    missingFiles.Clear();
                     // 只有当文件存在时才添加到保存列表
                     if (File.Exists(processPath))
                     {
