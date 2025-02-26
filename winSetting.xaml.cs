@@ -362,7 +362,7 @@ namespace ProcessMonitorAPP
             // 提示已失效路径
             if (missingFiles.Count > 0)
             {
-                string missingMessage = "以下程序不存在:\n".Translate() + string.Join("\n", missingFiles);
+                string missingMessage = "以下程序不存在:\r\n".Translate() + string.Join("\n", missingFiles);
                 // 延迟执行 MessageBox，确保它在窗口加载完成后显示
                 Dispatcher.BeginInvoke(new Action(() =>
                 {
