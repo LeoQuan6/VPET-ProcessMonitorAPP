@@ -29,6 +29,7 @@ namespace ProcessMonitorAPP
         public ProcessMonitor(IMainWindow mainwin) : base(mainwin)
         {
         }
+        FullScreenDetector FSD = new();
         //-------------- 使用字段初始化--------------
         /// <summary>
         /// 监控任务统计
@@ -239,7 +240,7 @@ namespace ProcessMonitorAPP
         /// <param name="e"></param>
         private async void CheckFullScreenStatus(object? sender, EventArgs e)
         {
-            HasFullScreen = await FullScreenDetector.GetFullScreenWindowCount();
+            HasFullScreen = await FSD.GetFullScreenWindowCount();
         }
 
         /// <summary>

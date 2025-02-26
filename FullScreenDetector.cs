@@ -2,6 +2,7 @@
 using System;
 using System.Diagnostics;
 using System.Drawing;
+using System.Printing.IndexedProperties;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows;
@@ -106,6 +107,16 @@ namespace ProcessMonitorAPP
         [DllImport("user32.dll")]
         public static extern int GetWindowPlacement(IntPtr hWnd, ref WINDOWPLACEMENT lpwndpl);
 
+        /// <summary>
+        /// 存储是否置顶过全屏窗口
+        /// </summary>
+        private bool HasTopmost;
+        /// <summary>
+        /// 存储上一个窗口信息 用于比对是否是新的窗口
+        /// </summary>
+        public WindowInfo LastWindowInfo;
+
+
         // 定义常量
         public static readonly IntPtr HWND_TOPMOST = new IntPtr(-1);
         public static readonly IntPtr HWND_NOTOPMOST = new IntPtr(-2);
@@ -145,7 +156,7 @@ namespace ProcessMonitorAPP
         /// <returns>前台窗口是全屏 返回true
         /// <para>前台窗口不是全屏 返回false</para>
         /// </returns>
-        public static async Task<bool> GetFullScreenWindowCount()
+        public async Task<bool> GetFullScreenWindowCount()
         {
             bool fullScreen = false;
             IntPtr foreground_hWnd = GetForegroundWindow();
@@ -158,22 +169,68 @@ namespace ProcessMonitorAPP
             {
                 fullScreen = true;
             }
-
-            // 返回之前进行异步延迟操作
-            await Task.Delay(500); // 延迟0.5秒
-
-            if (fullScreen && foreground_hWnd != IntPtr.Zero)
+            if 
+                (
+                fullScreen &&
+                foreground_hWnd != IntPtr.Zero &&
+                !IsSameWindow(LastWindowInfo, windowinfo)
+                )
             {
+                HasTopmost = false;
+                Task.Run(() =>
+                {
+                    SetWindow(fullScreen, foreground_hWnd, LastWindowInfo, windowinfo);
+                });
+            }
+            LastWindowInfo = windowinfo;
+            return fullScreen;
+        }
+
+        public async Task SetWindow(bool fullScreen, IntPtr foreground_hWnd, WindowInfo lastwindowinfo, WindowInfo windowinfo)
+        {
+            if (!HasTopmost)
+            { 
+                // 返回之前进行异步延迟操作
+                await Task.Delay(500); // 延迟0.5秒
+
+                // MessageBox.Show("Yes");
                 // 先置顶全屏窗口
                 SetWindowPos(foreground_hWnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
-            }
-            if (fullScreen && foreground_hWnd != IntPtr.Zero)
-            {
+                await Task.Delay(1); // 延迟0.001秒
                 // 再取消全屏窗口的置顶, 以达到覆盖桌宠但不永远覆盖
                 SetWindowPos(foreground_hWnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+                HasTopmost = true;
             }
+        }
 
-            return fullScreen;
+        private bool IsSameWindow(WindowInfo windowinfo1, WindowInfo windowinfo2)
+        {
+            if
+                (
+                windowinfo1.hWnd == windowinfo2.hWnd &&
+
+                windowinfo1.WindowFactRect.Left == windowinfo2.WindowFactRect.Left &&
+                windowinfo1.WindowFactRect.Right == windowinfo2.WindowFactRect.Right &&
+                windowinfo1.WindowFactRect.Top == windowinfo2.WindowFactRect.Top &&
+                windowinfo1.WindowFactRect.Bottom == windowinfo2.WindowFactRect.Bottom &&
+
+                windowinfo1.WindowRect.Left == windowinfo2.WindowRect.Left &&
+                windowinfo1.WindowRect.Right == windowinfo2.WindowRect.Right &&
+                windowinfo1.WindowRect.Top == windowinfo2.WindowRect.Top &&
+                windowinfo1.WindowRect.Bottom == windowinfo2.WindowRect.Bottom &&
+
+                windowinfo1.WindowPoint.X == windowinfo2.WindowPoint.X &&
+                windowinfo1.WindowPoint.Y == windowinfo2.WindowPoint.Y &&
+                windowinfo1.ScreenHeightAndWidth.Width == windowinfo2.ScreenHeightAndWidth.Width &&
+                windowinfo1.ScreenHeightAndWidth.Height == windowinfo2.ScreenHeightAndWidth.Height &&
+
+                windowinfo1.Title == windowinfo2.Title &&
+                windowinfo1.ClassName == windowinfo2.ClassName &&
+                windowinfo1.ProcessName == windowinfo2.ProcessName &&
+                windowinfo1.WindowState == windowinfo2.WindowState
+                )
+            return true;
+            else return false;
         }
 
         /// <summary>
